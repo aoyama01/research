@@ -1,0 +1,73 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+*.pyo
+.env
+.venv
+env/
+venv/
+*.log
+*.pytest_cache/
+*.mypy_cache/
+*.tox/
+.coverage
+.cache/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# R
+*.Rproj.user/
+*.Rhistory
+*.RData
+*.Ruserdata
+*.Rproj
+
+# R package build
+.Rbuildignore
+*.tar.gz
+
+# C++
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.exe
+*.out
+*.a
+*.lib
+*.log
+*.cmake
+CMakeFiles/
+CMakeCache.txt
+Makefile
+build/
+
+# General
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*.bak
+*.~lock.*
+*.~*
+
+# IDE-specific files
+.idea/
+.vscode/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.user
+*.VC.db
+*.code-workspace
