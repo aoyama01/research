@@ -35,6 +35,7 @@ def modify_time(time_str, delta_seconds):
     return modified_time.strftime("%H:%M:%S.%f")[:-3]
 
 
+# rriの積分時系列を生成してtimeと比較
 time_sum_of_rri = [time_extract[0]]
 
 for i, time in enumerate(time_extract):
