@@ -86,7 +86,7 @@ if __name__ == "__main__":
     anomalous_times = detect_anomalous_times(rri_data_in, rri_column, time_column)
 
     # 心拍データファイルの異常値削除
-    remove_anomalous_times(rri_data_in, time_column, anomalous_times, eeg_data_out)
+    remove_anomalous_times(rri_data_in, time_column, anomalous_times, rri_data_out)
 
     # EEGデータファイルの異常値削除
-    remove_anomalous_times(eeg_data_in, "Time", anomalous_times, rri_data_out)
+    remove_anomalous_times(eeg_data_in, "Time", anomalous_times, eeg_data_out)
