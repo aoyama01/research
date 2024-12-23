@@ -5,21 +5,18 @@ import pandas as pd
 from scipy.signal import savgol_filter
 
 # ファイルのパスを設定
-file_path_1 = "../../data/プロアシスト脳波・心拍_copy/2018年度（男性・自宅・避難所・車中泊）/脳波/DA_sheet/181A_001_Powerと睡眠ステージ.csv"
-file_path_2 = "../../data/プロアシスト脳波・心拍_origin/2018年度（男性・自宅・避難所・車中泊）/心拍/DA_sheet.csv"
+file_path_1 = "../../../data/プロアシスト脳波・心拍_copy/2018年度（男性・自宅・避難所・車中泊）/脳波/DA_sheet/181A_001_Powerと睡眠ステージ_cleaned.csv"
+file_path_2 = "../../../data/プロアシスト脳波・心拍_copy/2018年度（男性・自宅・避難所・車中泊）/心拍/DA_sheet_cutout_cleaned.csv"
 
 # 1つ目のファイルを読み込む
 data_1 = pd.read_csv(file_path_1, encoding="shift-jis")
 
-# 2つ目のファイルを、最初の5行をスキップして読み込む
-data_2 = pd.read_csv(file_path_2, encoding="shift-jis", skiprows=5)
-
-# 必要な行をフィルタリング（1290から41820まで、30行ごとに取得）
-filtered_data_2 = data_2.iloc[1290:41850:30]
+# 2つ目のファイルを読み込む
+data_2 = pd.read_csv(file_path_2, encoding="shift-jis")
 
 # クロス相関に必要な列を抽出：1つ目のファイルからDelta_Ratio、2つ目のファイルからRRI
 x1 = data_1["Delta_Ratio"].values
-x2 = filtered_data_2["RRI"].values
+x2 = data_2["RRI"].values
 
 # 平均を0、標準偏差を1に標準化
 # x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
@@ -115,5 +112,3 @@ plt.show()
 
 # 1/f ゆらぎは数十秒から数時間あるから
 # 30秒間隔のサンプリングでも問題ない？（2024/11/06）
-
-# %%
