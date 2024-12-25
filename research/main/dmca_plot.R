@@ -1,38 +1,38 @@
 #
 # Higher-order detrending moving-averagecross-correlation analysis
-# 0ŸDMCA‚Ìƒfƒ‚ (ƒ‰ƒO‚È‚µ)
-# yÀÛ‚Ì‰ğÍ‚Å‚Íƒ‰ƒO‚Ì„’è‚ªd—v‚Å‚·z
+# 0æ¬¡DMCAã®ãƒ‡ãƒ¢ (ãƒ©ã‚°ãªã—)
+# ã€å®Ÿéš›ã®è§£æã§ã¯ãƒ©ã‚°ã®æ¨å®šãŒé‡è¦ã§ã™ã€‘
 #
 ######################
-# –‘O‚ÉƒpƒbƒP[ƒW‚ğƒCƒ“ƒXƒg[ƒ‹‚·‚é‚±‚Æ
+# äº‹å‰ã«ãƒ‘ãƒƒã‚±ãƒ¼ã‚¸ã‚’ã‚¤ãƒ³ã‚¹ãƒˆãƒ¼ãƒ«ã™ã‚‹ã“ã¨
 # install.packages("longmemo")
 # install.packages("signal")
 ######################
 require(longmemo)
 require(signal)
 ######################
-# ƒtƒ@ƒCƒ‹‚ÌƒpƒX‚ğİ’è
-file_path_1 <- '../../data/ƒvƒƒAƒVƒXƒg”]”gES”_copy/2018”N“xi’j«E©‘îE”ğ“ïŠEÔ’†”‘j/”]”g/DA_sheet/181A_001_Power‚Æ‡–°ƒXƒe[ƒW.csv'
-file_path_2 <- '../../data/ƒvƒƒAƒVƒXƒg”]”gES”_origin/2018”N“xi’j«E©‘îE”ğ“ïŠEÔ’†”‘j/S”/DA_sheet.csv'
+# ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ‘ã‚¹ã‚’è¨­å®š
+file_path_1 <- '../../data/ãƒ—ãƒ­ã‚¢ã‚·ã‚¹ãƒˆè„³æ³¢ãƒ»å¿ƒæ‹_copy/2018å¹´åº¦ï¼ˆç”·æ€§ãƒ»è‡ªå®…ãƒ»é¿é›£æ‰€ãƒ»è»Šä¸­æ³Šï¼‰/è„³æ³¢/DA_sheet/181A_001_Powerã¨ç¡çœ ã‚¹ãƒ†ãƒ¼ã‚¸.csv'
+file_path_2 <- '../../data/ãƒ—ãƒ­ã‚¢ã‚·ã‚¹ãƒˆè„³æ³¢ãƒ»å¿ƒæ‹_origin/2018å¹´åº¦ï¼ˆç”·æ€§ãƒ»è‡ªå®…ãƒ»é¿é›£æ‰€ãƒ»è»Šä¸­æ³Šï¼‰/å¿ƒæ‹/DA_sheet.csv'
 
-# 1‚Â–Ú‚Ìƒtƒ@ƒCƒ‹‚ğ“Ç‚İ‚Ş
+# 1ã¤ç›®ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’èª­ã¿è¾¼ã‚€
 data_1 <- read.csv(file_path_1, fileEncoding = "shift-jis")
 
-# 2‚Â–Ú‚Ìƒtƒ@ƒCƒ‹‚ğAÅ‰‚Ì5s‚ğƒXƒLƒbƒv‚µ‚Ä“Ç‚İ‚Ş
+# 2ã¤ç›®ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã€æœ€åˆã®5è¡Œã‚’ã‚¹ã‚­ãƒƒãƒ—ã—ã¦èª­ã¿è¾¼ã‚€
 data_2 <- read.csv(file_path_2, fileEncoding = "shift-jis", skip = 5)
 
-# •K—v‚Ès‚ğƒtƒBƒ‹ƒ^ƒŠƒ“ƒOi1290‚©‚ç41820‚Ü‚ÅA30s‚²‚Æ‚Éæ“¾j(Python‚¾‚Æ1290‚©‚ç41820‚Á‚Ä‘‚¢‚½)
+# å¿…è¦ãªè¡Œã‚’ãƒ•ã‚£ãƒ«ã‚¿ãƒªãƒ³ã‚°ï¼ˆ1290ã‹ã‚‰41820ã¾ã§ã€30è¡Œã”ã¨ã«å–å¾—ï¼‰(Pythonã ã¨1290ã‹ã‚‰41820ã£ã¦æ›¸ã„ãŸ)
 filtered_data_2 <- data_2[seq(1290, 41820, by = 30), ]
 
-# ƒNƒƒX‘ŠŠÖ‚É•K—v‚È—ñ‚ğ’ŠoF1‚Â–Ú‚Ìƒtƒ@ƒCƒ‹‚©‚çDelta_RatioA2‚Â–Ú‚Ìƒtƒ@ƒCƒ‹‚©‚çRRI
+# ã‚¯ãƒ­ã‚¹ç›¸é–¢ã«å¿…è¦ãªåˆ—ã‚’æŠ½å‡ºï¼š1ã¤ç›®ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰Delta_Ratioã€2ã¤ç›®ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰RRI
 x1 <- data_1$Delta_Ratio
 x2 <- filtered_data_2$RRI
 
-# •½‹Ï‚ğ0A•W€•Î·‚ğ1‚É•W€‰»
+# å¹³å‡ã‚’0ã€æ¨™æº–åå·®ã‚’1ã«æ¨™æº–åŒ–
 x1 <- (x1 - mean(x1, na.rm = TRUE)) / sd(x1, na.rm = TRUE)
 x2 <- (x2 - mean(x2, na.rm = TRUE)) / sd(x2, na.rm = TRUE)
 
-# Œn—ñ‚Ì’·‚³
+# æ™‚ç³»åˆ—ã®é•·ã•
 n <- length(x1)
 
 ############################
@@ -43,19 +43,19 @@ length(x2)
 plot(1:n-1,x2,"l",col=4,xaxs="i",xlab="i",ylab='RRI',main="RR-interval")
 # lines(1:n-1,eps.common,col=2)
 ############################
-# DMA‚Å‰ğÍ‚·‚éƒXƒP[ƒ‹‚ÍŠï”‚Ì‚İ
-# ‰½“_‚É‚·‚é‚©
+# DMAã§è§£æã™ã‚‹ã‚¹ã‚±ãƒ¼ãƒ«ã¯å¥‡æ•°ã®ã¿
+# ä½•ç‚¹ã«ã™ã‚‹ã‹
 n.s <- 20
-# ƒXƒP[ƒ‹‚ÌŒˆ’è
+# ã‚¹ã‚±ãƒ¼ãƒ«ã®æ±ºå®š
 s <- unique(round(exp(seq(log(5),log(n/4),length.out=n.s))/2)*2+1)
 #########################
 F1 <- c()
 F2 <- c()
 F12_sq <- c()
-# ySTEP1@zŒn—ñ‚ÌÏ•ª
+# ã€STEP1ã€€ã€‘æ™‚ç³»åˆ—ã®ç©åˆ†
 y1 <- cumsum(x1)
 y2 <- cumsum(x2)
-# 0ŸDMA‚ÆDMCA
+# 0æ¬¡DMAã¨DMCA
 for(i in 1:n.s){
   # Detrending
   y1.detrend <- y1 - sgolayfilt(y1,p=0,n=s[i],m=0,ts=1)
@@ -68,10 +68,10 @@ rho <- F12_sq/(F1*F2)
 #####
 # plot
 ###
-# ‘ŠŒİ‘ŠŠÖ
+# ç›¸äº’ç›¸é–¢
 plot(log10(s),rho,col=2,ylim=c(-1,1),main="Cross-correlation")
 abline(h=c(-1,0,1),lty=2,col=gray(0.5),lwd=2)
-# ƒXƒP[ƒŠƒ“ƒO
+# ã‚¹ã‚±ãƒ¼ãƒªãƒ³ã‚°
 log10F1 <- log10(F1)
 log10F2 <- log10(F2)
 log10F12 <- log10(abs(F12_sq))/2
