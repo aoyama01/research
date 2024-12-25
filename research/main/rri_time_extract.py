@@ -5,9 +5,12 @@ import numpy as np
 import pandas as pd
 from icecream import ic
 
-file = "../../../data/心拍変動まとめ_copy/2019A自宅.csv"
+# file = "../../../data/心拍変動まとめ_copy/2019A自宅.csv"
+file = "../../../data/プロアシスト脳波・心拍_copy/2022年度（女性・自宅・避難所・車中泊）/心拍/4.自宅.csv"
 data = pd.read_csv(file, encoding="shift-jis", skiprows=5)
+ic(data)
 
+# %%
 # 文字列の1つ目の半角スペースよりあとの部分を切り出す
 # time_extract を 1 次元の文字列配列として生成
 time_extract = np.array([elm[elm.find(" ") + 1 :] for elm in data["time"]], dtype=str)
