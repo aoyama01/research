@@ -13,11 +13,11 @@ ic(data)
 # %%
 # 文字列の1つ目の半角スペースよりあとの部分を切り出す
 # time_extract を 1 次元の文字列配列として生成
-time_extract = np.array([elm[elm.find(" ") + 1 :] for elm in data["time"]], dtype=str)
+time_extracted = np.array([elm[elm.find(" ") + 1 :] for elm in data["time"]], dtype=str)
 # ind = data["time"].find(" ")
 # time_extract = data["time"][ind + 1 :]
 
-ic(time_extract)
+ic(time_extracted)
 
 
 def modify_time(time_str, delta_seconds):
@@ -39,9 +39,9 @@ def modify_time(time_str, delta_seconds):
 
 
 # rriの積分時系列を生成してtimeと比較
-time_sum_of_rri = [time_extract[0]]
+time_sum_of_rri = [time_extracted[0]]
 
-for i, time in enumerate(time_extract):
+for i, time in enumerate(time_extracted):
     time_sum_of_rri.append(modify_time(time, data["RRI"][i] * 10**-3))
 
 ic(np.array(time_sum_of_rri))
