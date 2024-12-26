@@ -5,18 +5,14 @@ import pandas as pd
 from scipy.signal import savgol_filter
 
 # ファイルのパスを設定
-file_path_1 = "../../../data/プロアシスト脳波・心拍_copy/2018年度（男性・自宅・避難所・車中泊）/脳波/DA_sheet/181A_001_Powerと睡眠ステージ_cleaned.csv"
-file_path_2 = "../../../data/プロアシスト脳波・心拍_copy/2018年度（男性・自宅・避難所・車中泊）/心拍/DA_sheet_cutout_cleaned.csv"
+file_path = "../../../data/睡眠段階まとめ_copy/2019A自宅_EEG_RRI.csv"
 
 # 1つ目のファイルを読み込む
-data_1 = pd.read_csv(file_path_1, encoding="shift-jis")
-
-# 2つ目のファイルを読み込む
-data_2 = pd.read_csv(file_path_2, encoding="shift-jis")
+data = pd.read_csv(file_path, encoding="shift-jis")
 
 # クロス相関に必要な列を抽出：1つ目のファイルからDelta_Ratio、2つ目のファイルからRRI
-x1 = data_1["Delta_Ratio"].values
-x2 = data_2["RRI"].values
+x1 = data["Delta_Ratio"].values
+x2 = data["meanRR"].values
 
 # 平均を0、標準偏差を1に標準化
 # x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
@@ -59,9 +55,18 @@ F12_sq = []
 x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
 x2 = (x2 - np.nanmean(x2)) / np.nanstd(x2)
 
+# データ内のNaNをデータ全体の中央値で埋める
+# x1 = np.nan_to_num(x1, nan=np.nanmedian(x1))
+# x2 = np.nan_to_num(x2, nan=np.nanmedian(x2))
+
+# データ内のNaNを線形補間で埋める
+x1 = pd.Series(x1).interpolate(limit_direction="both").values
+x2 = pd.Series(x2).interpolate(limit_direction="both").values
+
 # 時系列の積分
 y1 = np.cumsum(x1)
 y2 = np.cumsum(x2)
+
 
 # 0次DMAとDMCA
 for si in s:
