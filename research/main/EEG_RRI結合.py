@@ -5,26 +5,56 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 
+# 実行中のスクリプトが存在するディレクトリを取得
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# カレントディレクトリをスクリプトのディレクトリに設定
+os.chdir(script_dir)
+
+# 確認
+# print(f"現在の作業ディレクトリ: {os.getcwd()}")
+
 # フォルダの指定
-DIR_RRI = "G:/Aoyama_RRI_EEG"
-DIR_EEG = "G:/Aoyama_RRI_EEG"
-DIR_OUT = "G:/Aoyama_RRI_EEG"
+DIR_RRI = "../../../data/心拍変動まとめ_copy"
+DIR_EEG = "../../../data/睡眠段階まとめ_copy"
+DIR_OUT = "../../../data/睡眠段階まとめ_copy"
 
 # ファイル名の指定
 FN_RRI = "2019A自宅.csv"
 FN_EEG = "2019A自宅睡眠段階.csv"
-FN_OUT = "EEG_RRI.csv"
+FN_OUT = "2019A自宅_EEG_RRI.csv"
 
 # 脳波の計測開始日
 date_eeg = "2019-11-21"
 
+# # %%
+
+# # 任意のディレクトリ
+# target_directory = (
+#     "D:/OneDrive - OUMail (Osaka University)/B4_AW/GradRes/data/心拍変動まとめ_copy"
+# )
+
+# # 相対パスを計算
+# relative_path = os.path.relpath(target_directory, os.getcwd())
+
+# print(f"現在のディレクトリ: {os.getcwd()}")
+# print(f"ターゲットディレクトリ: {target_directory}")
+# print(f"相対パス: {relative_path}")
+
+
 # ファイル読み込み
+# if not os.path.exists(DIR_RRI):
+#     raise FileNotFoundError(f"指定されたパスが見つかりません→→→: {DIR_RRI}")
+# else:
+#     os.chdir(DIR_RRI)
+os.chdir(script_dir)
 os.chdir(DIR_RRI)
-TMP_RRI = pd.read_csv(FN_RRI, header=0, skiprows=5)
+TMP_RRI = pd.read_csv(FN_RRI, header=0, skiprows=5, encoding="shift-jis")
 TMP_RRI["time"] = pd.to_datetime(TMP_RRI["time"], utc=True).dt.tz_convert("Asia/Tokyo")
 
+os.chdir(script_dir)
 os.chdir(DIR_EEG)
-TMP_EEG = pd.read_csv(FN_EEG, header=0, skiprows=0)
+TMP_EEG = pd.read_csv(FN_EEG, header=0, skiprows=0, encoding="shift-jis")
 TMP_EEG["date.time"] = pd.to_datetime(
     date_eeg + " " + TMP_EEG["Time"], format="%Y-%m-%d %H:%M:%S", utc=True
 ).dt.tz_convert("Asia/Tokyo")
@@ -79,6 +109,9 @@ TMP_EEG["meanRR"] = meanRR
 TMP_EEG["SDRR"] = SDRR
 
 # 統合データの書き出し
+os.chdir(script_dir)
 os.chdir(DIR_OUT)
 TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
 TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
+
+# %%
