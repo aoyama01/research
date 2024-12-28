@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import numpy as np
 import pandas as pd
+from icecream import ic
 
 # 実行中のスクリプトが存在するディレクトリを取得
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -23,9 +24,6 @@ DIR_OUT = "../../../data/睡眠段階まとめ_copy"
 FN_RRI = "2019A自宅.csv"
 FN_EEG = "2019A自宅睡眠段階.csv"
 FN_OUT = "2019A自宅_EEG_RRI.csv"
-
-# 脳波の計測開始日
-date_eeg = "2019-11-21"
 
 # # %%
 
@@ -49,15 +47,29 @@ date_eeg = "2019-11-21"
 #     os.chdir(DIR_RRI)
 os.chdir(script_dir)
 os.chdir(DIR_RRI)
-TMP_RRI = pd.read_csv(FN_RRI, header=0, skiprows=5, encoding="shift-jis")
-TMP_RRI["time"] = pd.to_datetime(TMP_RRI["time"], utc=True).dt.tz_convert("Asia/Tokyo")
+# 計測開始日の取得
+TMP_RRI = pd.read_csv(
+    FN_RRI, nrows=4, encoding="shift-jis"
+)  # ファイルの先頭4行を読み込み(1行目はヘッダーとして無視)
+date_eeg = TMP_RRI.iloc[2][1]  # 3行目2列目に計測開始日が記載されている
 
+# RRIデータの読み込み
+TMP_RRI = pd.read_csv(FN_RRI, header=0, skiprows=5, encoding="shift-jis")
+ic(TMP_RRI["time"])
+# Pythonで日時データを扱いやすいように，%Y-%m-%d の形式に変換しとく
+TMP_RRI["time"] = pd.to_datetime(TMP_RRI["time"])
+ic(TMP_RRI["time"])
+
+# EEGデータの読み込み
 os.chdir(script_dir)
 os.chdir(DIR_EEG)
 TMP_EEG = pd.read_csv(FN_EEG, header=0, skiprows=0, encoding="shift-jis")
+ic(TMP_EEG["Time"])
+# EEGデータのTimeは時刻だけだったので，日付も追加
 TMP_EEG["date.time"] = pd.to_datetime(
-    date_eeg + " " + TMP_EEG["Time"], format="%Y-%m-%d %H:%M:%S", utc=True
-).dt.tz_convert("Asia/Tokyo")
+    date_eeg + " " + TMP_EEG["Time"], format="%Y/%m/%d %H:%M:%S"
+)  # 日本時間のデータなので，utcオプションは必要ない
+ic(TMP_EEG["date.time"])
 
 # 時間が逆転している行を修正
 N_EEG = len(TMP_EEG)
