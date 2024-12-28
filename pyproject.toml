@@ -1,2 +1,2 @@
 [tool.ruff]
-line-length = 150
+line-length = 150 # Set line length limit to 150 (default is 79)
