@@ -30,22 +30,14 @@ ic(all_files_RRI)
 for file_name in all_files_RRI:
     # ファイル名の指定
     FN_RRI = file_name  # このファイル名を基準にして以降のファイル名を取得
-    FN_EEG = (
-        FN_RRI.replace(".csv", "") + "睡眠段階.csv"
-    )  # FN_EEG = "2019B自宅睡眠段階.csv"
-    FN_EEG_DATE = (
-        FN_RRI.replace(".csv", "") + "日付.csv"
-    )  # FN_EEG_DATE = "2019B自宅日付.csv"
-    FN_OUT = (
-        FN_RRI.replace(".csv", "") + "_EEG_RRI.csv"
-    )  # FN_OUT = "2019B自宅_EEG_RRI.csv"
+    FN_EEG = FN_RRI.replace(".csv", "") + "睡眠段階.csv"  # FN_EEG = "2019B自宅睡眠段階.csv"
+    FN_EEG_DATE = FN_RRI.replace(".csv", "") + "日付.csv"  # FN_EEG_DATE = "2019B自宅日付.csv"
+    FN_OUT = FN_RRI.replace(".csv", "") + "_EEG_RRI.csv"  # FN_OUT = "2019B自宅_EEG_RRI.csv"
 
     os.chdir(script_dir)
     os.chdir(DIR_EEG)
     # 計測開始日の取得(脳波データの30秒間隔でmeanRRを求めていくため，脳波の収録開始時刻を基準にする)
-    TMP_EEG_DATE = pd.read_csv(
-        FN_EEG_DATE, nrows=7, encoding="shift-jis"
-    )  # ファイルの先頭7行を読み込み(1行目と1列目はヘッダーとして無視?)
+    TMP_EEG_DATE = pd.read_csv(FN_EEG_DATE, nrows=7, encoding="shift-jis")  # ファイルの先頭7行を読み込み(1行目と1列目はヘッダーとして無視?)
     ic(TMP_EEG_DATE)
     date_eeg = TMP_EEG_DATE.iloc[1][0]  # 「日付」を取得
     ic(date_eeg)
@@ -99,9 +91,7 @@ for file_name in all_files_RRI:
     time1 = min(time_RRI_rev)
     time2 = max(time_RRI_rev)
     time_r = pd.date_range(time1, time2, freq=f"{1/f_resamp}S")
-    RRI_r = np.interp(
-        time_r.astype(np.int64) / 1e9, time_RRI_rev.astype(np.int64) / 1e9, RRI_rev
-    )
+    RRI_r = np.interp(time_r.astype(np.int64) / 1e9, time_RRI_rev.astype(np.int64) / 1e9, RRI_rev)
 
     # RRIの平均値とSD
     time_sub = TMP_EEG["date.time"]
