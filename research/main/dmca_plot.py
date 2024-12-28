@@ -55,9 +55,7 @@ for label in labels:
 
     # DMAで解析するスケールは奇数のみ
     n_s = 20
-    s = np.unique(
-        np.round(np.exp(np.linspace(np.log(5), np.log(n / 4), n_s)) / 2) * 2 + 1
-    ).astype(int)
+    s = np.unique(np.round(np.exp(np.linspace(np.log(5), np.log(n / 4), n_s)) / 2) * 2 + 1).astype(int)
 
     # 初期化
     F1 = []
@@ -85,12 +83,8 @@ for label in labels:
         # Detrending
         # REVIEW: 第4引数のmodeによってCross-correlationとScalingのグラフが異なる
         # (interp(線形補間)のグラフがR言語でプロットしたやつとめちゃ似てる)
-        y1_detrend = y1 - savgol_filter(
-            y1, window_length=si, polyorder=0, mode="interp"
-        )
-        y2_detrend = y2 - savgol_filter(
-            y2, window_length=si, polyorder=0, mode="interp"
-        )
+        y1_detrend = y1 - savgol_filter(y1, window_length=si, polyorder=0, mode="interp")
+        y2_detrend = y2 - savgol_filter(y2, window_length=si, polyorder=0, mode="interp")
         F1.append(np.sqrt(np.mean(y1_detrend**2)))
         F2.append(np.sqrt(np.mean(y2_detrend**2)))
         F12_sq.append(np.mean(y1_detrend * y2_detrend))
@@ -117,13 +111,9 @@ for label in labels:
     y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
     y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
 
-    axs[1, 1].scatter(
-        np.log10(s), log10F1, color="green", label="log10(F1)", marker="^"
-    )
+    axs[1, 1].scatter(np.log10(s), log10F1, color="green", label="log10(F1)", marker="^")
     axs[1, 1].scatter(np.log10(s), log10F2, color="blue", label="log10(F2)", marker="s")
-    axs[1, 1].scatter(
-        np.log10(s), log10F12, color="red", label="log10(|F12|)/2", marker="o"
-    )
+    axs[1, 1].scatter(np.log10(s), log10F12, color="red", label="log10(|F12|)/2", marker="o")
     axs[1, 1].set_ylim(y_min, y_max)
     axs[1, 1].set_title("Scaling")
     axs[1, 1].set_xlabel("log10(s)")
