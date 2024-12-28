@@ -12,12 +12,8 @@ from icecream import ic
 
 # 実行中のスクリプトが存在するディレクトリを取得
 script_dir = os.path.dirname(os.path.abspath(__file__))
-
 # カレントディレクトリをスクリプトのディレクトリに設定
 os.chdir(script_dir)
-
-# 確認
-# print(f"現在の作業ディレクトリ: {os.getcwd()}")
 
 # フォルダの指定
 DIR_RRI = "../../../data/心拍変動まとめ_copy"
@@ -25,18 +21,26 @@ DIR_EEG = "../../../data/睡眠段階まとめ_copy"
 DIR_OUT = "../../../data/睡眠段階まとめ_copy"
 
 # ファイル名の指定
-FN_RRI = "2019A自宅.csv"
-FN_EEG = "2019A自宅睡眠段階.csv"
-FN_OUT = "2019A自宅_EEG_RRI.csv"
+FN_RRI = "2019B自宅.csv"  # このファイル名を基準にして以降のファイル名を取得
+FN_EEG = FN_RRI.replace(".csv", "") + "睡眠段階.csv"  # FN_EEG = "2019B自宅睡眠段階.csv"
+FN_EEG_DATE = (
+    FN_RRI.replace(".csv", "") + "日付.csv"
+)  # FN_EEG_DATE = "2020B自宅日付.csv"
+FN_OUT = FN_RRI.replace(".csv", "") + "_EEG_RRI.csv"  # FN_OUT = "2019B自宅_EEG_RRI.csv"
 
 os.chdir(script_dir)
-os.chdir(DIR_RRI)
-# 計測開始日の取得
-TMP_RRI = pd.read_csv(
-    FN_RRI, nrows=4, encoding="shift-jis"
-)  # ファイルの先頭4行を読み込み(1行目はヘッダーとして無視)
-date_eeg = TMP_RRI.iloc[2][1]  # 3行目2列目に計測開始日が記載されている
+os.chdir(DIR_EEG)
+# 計測開始日の取得(脳波データの30秒間隔でmeanRRを求めていくため，脳波の収録開始時刻を基準にする)
+TMP_EEG_DATE = pd.read_csv(
+    FN_EEG_DATE, nrows=7, encoding="shift-jis"
+)  # ファイルの先頭7行を読み込み(1行目と1列目はヘッダーとして無視?)
+ic(TMP_EEG_DATE)
+date_eeg = TMP_EEG_DATE.iloc[1][0]  # 「日付」を取得
+ic(date_eeg)
+date_eeg = "20" + date_eeg  # YY/MM/DD -> 20YY/MM/DD
+ic(date_eeg)
 
+# %%
 # RRIデータの読み込み
 TMP_RRI = pd.read_csv(FN_RRI, header=0, skiprows=5, encoding="shift-jis")
 ic(TMP_RRI["time"])
