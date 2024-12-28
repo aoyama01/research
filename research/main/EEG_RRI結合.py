@@ -29,26 +29,6 @@ FN_RRI = "2019A自宅.csv"
 FN_EEG = "2019A自宅睡眠段階.csv"
 FN_OUT = "2019A自宅_EEG_RRI.csv"
 
-# # %%
-
-# # 任意のディレクトリ
-# target_directory = (
-#     "D:/OneDrive - OUMail (Osaka University)/B4_AW/GradRes/data/心拍変動まとめ_copy"
-# )
-
-# # 相対パスを計算
-# relative_path = os.path.relpath(target_directory, os.getcwd())
-
-# print(f"現在のディレクトリ: {os.getcwd()}")
-# print(f"ターゲットディレクトリ: {target_directory}")
-# print(f"相対パス: {relative_path}")
-
-
-# ファイル読み込み
-# if not os.path.exists(DIR_RRI):
-#     raise FileNotFoundError(f"指定されたパスが見つかりません→→→: {DIR_RRI}")
-# else:
-#     os.chdir(DIR_RRI)
 os.chdir(script_dir)
 os.chdir(DIR_RRI)
 # 計測開始日の取得
