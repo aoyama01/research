@@ -6,6 +6,10 @@ import numpy as np
 import pandas as pd
 from icecream import ic
 
+###
+# ic.disable()  # icによるデバッグを無効化
+###
+
 # 実行中のスクリプトが存在するディレクトリを取得
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
