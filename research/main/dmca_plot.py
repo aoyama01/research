@@ -26,10 +26,6 @@ for label in labels:
     x1 = data[column1].values
     x2 = data["meanRR"].values
 
-    # 平均を0、標準偏差を1に標準化
-    # x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
-    # x2 = (x2 - np.nanmean(x2)) / np.nanstd(x2)
-
     # 時系列の長さ
     n = len(x1)
 
@@ -39,13 +35,6 @@ for label in labels:
     axs[0, 0].set_title(column1)
     axs[0, 0].set_xlabel("i")
     axs[0, 0].set_ylabel(column1)
-
-    # # 現在の横軸の目盛り位置とラベルを取得
-    # current_ticks = plt.gca().get_xticks()
-    # # 目盛りを30倍した新しいラベルを設定
-    # new_labels = [int(tick * 30) for tick in current_ticks]
-    # plt.xticks(ticks=current_ticks, labels=new_labels)
-    # plt.xlim(-75, 1425)
 
     axs[0, 1].plot(range(n), x2, color="blue")
     axs[0, 1].set_title("RR-interval")
