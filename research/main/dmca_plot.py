@@ -1,137 +1,153 @@
 # %%
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from chardet import detect
+from icecream import ic
 from scipy.signal import savgol_filter
 
-# ファイルのパスを設定
-file_path = "../../../data/睡眠段階まとめ_copy/2019A自宅_EEG_RRI.csv"
+###
+# ic.disable()  # icによるデバッグを無効化
+###
 
-# 1つ目のファイルを読み込む
-data = pd.read_csv(file_path, encoding="shift-jis")
+# 実行中のスクリプトが存在するディレクトリを取得
+script_dir = os.path.dirname(os.path.abspath(__file__))
+# カレントディレクトリをスクリプトのディレクトリに設定
+os.chdir(script_dir)
 
-# 横軸(data columns)の文字列
-labels = [
-    "Delta_Ratio",
-    "Theta_Ratio",
-    "Alpha_Ratio",
-    "Beta_Ratio",
-    "Gamma_Ratio",
-    "Sigma_Ratio",
-]
+DIR_EEG = "../../../data/睡眠段階まとめ_copy"  # ディレクトリの指定
 
-for label in labels:
-    column1 = label
-    # 解析対象となる列を抽出
-    x1 = data[column1].values
-    x2 = data["meanRR"].values
+# ディレクトリ内の全てのcsvファイルのファイル名を取得(2023年度のデータはおかしいので除く)
+all_combined_files = [f for f in os.listdir(DIR_EEG) if f.endswith("_EEG_RRI.csv") and "2023" not in f]
+ic(all_combined_files)
 
-    # 平均を0、標準偏差を1に標準化
-    # x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
-    # x2 = (x2 - np.nanmean(x2)) / np.nanstd(x2)
+# # %%
+# os.getcwd()
+# os.chdir(DIR_EEG)  # ディレクトリの移動
+# ic(all_combined_files[-2:])
 
-    # 時系列の長さ
-    n = len(x1)
+# %%
+for file_name in all_combined_files[-2:]:
+    # ファイルのパスを設定
+    # file_path = "../../../data/睡眠段階まとめ_copy/2019A自宅_EEG_RRI.csv"
 
-    # プロット設定
-    fig, axs = plt.subplots(2, 2, figsize=(10, 8))
-    axs[0, 0].plot(range(n), x1, color="green")
-    axs[0, 0].set_title(column1)
-    axs[0, 0].set_xlabel("i")
-    axs[0, 0].set_ylabel(column1)
+    # ファイルの読み込み
+    os.chdir(script_dir)
+    os.chdir(DIR_EEG)  # ディレクトリの移動
+    # data = pd.read_csv(file_name, encoding=detect(file_name)["encoding"])
+    # data = pd.read_csv(file_name, encoding="shift-jis")
+    with open(file_name, "rb") as file:
+        # ファイルのエンコーディングを検出
+        detected_encoding = detect(file.read())["encoding"]
+    ic(detected_encoding)
+    # 正しいエンコーディングでファイルを読み込む
+    data = pd.read_csv(file_name, encoding=detected_encoding)
 
-    # # 現在の横軸の目盛り位置とラベルを取得
-    # current_ticks = plt.gca().get_xticks()
-    # # 目盛りを30倍した新しいラベルを設定
-    # new_labels = [int(tick * 30) for tick in current_ticks]
-    # plt.xticks(ticks=current_ticks, labels=new_labels)
-    # plt.xlim(-75, 1425)
+    # 横軸(data columns)の文字列
+    labels = [
+        "Delta_Ratio",
+        "Theta_Ratio",
+        "Alpha_Ratio",
+        "Beta_Ratio",
+        "Gamma_Ratio",
+        "Sigma_Ratio",
+    ]
 
-    axs[0, 1].plot(range(n), x2, color="blue")
-    axs[0, 1].set_title("RR-interval")
-    axs[0, 1].set_xlabel("i")
-    axs[0, 1].set_ylabel("RRI [ms]")
-    # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
+    for label in labels:
+        column1 = label
+        # 解析対象となる列を抽出
+        x1 = data[column1].values
+        x2 = data["meanRR"].values
 
-    # DMAで解析するスケールは奇数のみ
-    n_s = 20
-    s = np.unique(
-        np.round(np.exp(np.linspace(np.log(5), np.log(n / 4), n_s)) / 2) * 2 + 1
-    ).astype(int)
+        # 時系列の長さ
+        n = len(x1)
 
-    # 初期化
-    F1 = []
-    F2 = []
-    F12_sq = []
+        # プロット設定
+        fig, axs = plt.subplots(2, 2, figsize=(10, 8))
+        axs[0, 0].plot(range(n), x1, color="green")
+        axs[0, 0].set_title(column1)
+        axs[0, 0].set_xlabel("i")
+        axs[0, 0].set_ylabel(column1)
 
-    # 平均を0、標準偏差を1に標準化
-    x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
-    x2 = (x2 - np.nanmean(x2)) / np.nanstd(x2)
+        axs[0, 1].plot(range(n), x2, color="blue")
+        axs[0, 1].set_title("RR-interval")
+        axs[0, 1].set_xlabel("i")
+        axs[0, 1].set_ylabel("RRI [ms]")
+        # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
 
-    # データ内のNaNをデータ全体の中央値で埋める
-    # x1 = np.nan_to_num(x1, nan=np.nanmedian(x1))
-    # x2 = np.nan_to_num(x2, nan=np.nanmedian(x2))
+        # DMAで解析するスケールは奇数のみ
+        n_s = 20
+        s = np.unique(np.round(np.exp(np.linspace(np.log(5), np.log(n / 4), n_s)) / 2) * 2 + 1).astype(int)
 
-    # データ内のNaNを線形補間で埋める
-    x1 = pd.Series(x1).interpolate(limit_direction="both").values
-    x2 = pd.Series(x2).interpolate(limit_direction="both").values
+        # 初期化
+        F1 = []
+        F2 = []
+        F12_sq = []
 
-    # 時系列の積分
-    y1 = np.cumsum(x1)
-    y2 = np.cumsum(x2)
+        # 平均を0、標準偏差を1に標準化
+        x1 = (x1 - np.nanmean(x1)) / np.nanstd(x1)
+        x2 = (x2 - np.nanmean(x2)) / np.nanstd(x2)
 
-    # 0次DMAとDMCA
-    for si in s:
-        # Detrending
-        # REVIEW: 第4引数のmodeによってCross-correlationとScalingのグラフが異なる
-        # (interp(線形補間)のグラフがR言語でプロットしたやつとめちゃ似てる)
-        y1_detrend = y1 - savgol_filter(
-            y1, window_length=si, polyorder=0, mode="interp"
-        )
-        y2_detrend = y2 - savgol_filter(
-            y2, window_length=si, polyorder=0, mode="interp"
-        )
-        F1.append(np.sqrt(np.mean(y1_detrend**2)))
-        F2.append(np.sqrt(np.mean(y2_detrend**2)))
-        F12_sq.append(np.mean(y1_detrend * y2_detrend))
+        # データ内のNaNをデータ全体の中央値で埋める
+        # x1 = np.nan_to_num(x1, nan=np.nanmedian(x1))
+        # x2 = np.nan_to_num(x2, nan=np.nanmedian(x2))
 
-    F1 = np.array(F1)
-    F2 = np.array(F2)
-    F12_sq = np.array(F12_sq)
+        # データ内のNaNを線形補間で埋める
+        x1 = pd.Series(x1).interpolate(limit_direction="both").values
+        x2 = pd.Series(x2).interpolate(limit_direction="both").values
 
-    rho = F12_sq / (F1 * F2)
+        # 時系列の積分
+        y1 = np.cumsum(x1)
+        y2 = np.cumsum(x2)
 
-    # クロス相関プロット
-    axs[1, 0].plot(np.log10(s), rho, color="red")
-    axs[1, 0].set_ylim(-1, 1)
-    axs[1, 0].axhline(0, linestyle="--", color="gray")
-    axs[1, 0].set_title("Cross-correlation")
-    axs[1, 0].set_xlabel("log10(s)")
-    axs[1, 0].set_ylabel("rho")
+        # 0次DMAとDMCA
+        for si in s:
+            # Detrending
+            # REVIEW: 第4引数のmodeによってCross-correlationとScalingのグラフが異なる
+            # (interp(線形補間)のグラフがR言語でプロットしたやつとめちゃ似てる)
+            y1_detrend = y1 - savgol_filter(y1, window_length=si, polyorder=0, mode="interp")
+            y2_detrend = y2 - savgol_filter(y2, window_length=si, polyorder=0, mode="interp")
+            F1.append(np.sqrt(np.mean(y1_detrend**2)))
+            F2.append(np.sqrt(np.mean(y2_detrend**2)))
+            F12_sq.append(np.mean(y1_detrend * y2_detrend))
 
-    # スケーリングプロット
-    log10F1 = np.log10(F1)
-    log10F2 = np.log10(F2)
-    log10F12 = np.log10(np.abs(F12_sq)) / 2
+        F1 = np.array(F1)
+        F2 = np.array(F2)
+        F12_sq = np.array(F12_sq)
 
-    y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
-    y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
+        rho = F12_sq / (F1 * F2)
 
-    axs[1, 1].scatter(
-        np.log10(s), log10F1, color="green", label="log10(F1)", marker="^"
-    )
-    axs[1, 1].scatter(np.log10(s), log10F2, color="blue", label="log10(F2)", marker="s")
-    axs[1, 1].scatter(
-        np.log10(s), log10F12, color="red", label="log10(|F12|)/2", marker="o"
-    )
-    axs[1, 1].set_ylim(y_min, y_max)
-    axs[1, 1].set_title("Scaling")
-    axs[1, 1].set_xlabel("log10(s)")
-    axs[1, 1].set_ylabel("log10(F(s))")
-    axs[1, 1].legend()
+        # クロス相関プロット
+        axs[1, 0].plot(np.log10(s), rho, color="red")
+        axs[1, 0].set_ylim(-1, 1)
+        axs[1, 0].axhline(0, linestyle="--", color="gray")
+        axs[1, 0].set_title("Cross-correlation")
+        axs[1, 0].set_xlabel("log10(s)")
+        axs[1, 0].set_ylabel("rho")
 
-    plt.tight_layout()
-    plt.show()
+        # スケーリングプロット
+        log10F1 = np.log10(F1)
+        log10F2 = np.log10(F2)
+        log10F12 = np.log10(np.abs(F12_sq)) / 2
 
-    # 1/f ゆらぎは数十秒から数時間あるから
-    # 30秒間隔のサンプリングでも問題ない？（2024/11/06）
+        y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
+        y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
+
+        axs[1, 1].scatter(np.log10(s), log10F1, color="green", label="log10(F1)", marker="^")
+        axs[1, 1].scatter(np.log10(s), log10F2, color="blue", label="log10(F2)", marker="s")
+        axs[1, 1].scatter(np.log10(s), log10F12, color="red", label="log10(|F12|)/2", marker="o")
+        axs[1, 1].set_ylim(y_min, y_max)
+        axs[1, 1].set_title("Scaling")
+        axs[1, 1].set_xlabel("log10(s)")
+        axs[1, 1].set_ylabel("log10(F(s))")
+        axs[1, 1].legend()
+
+        plt.tight_layout()
+        plt.show()
+
+        # 1/f ゆらぎは数十秒から数時間あるから
+        # 30秒間隔のサンプリングでも問題ない？（2024/11/06）
+
+# %%
