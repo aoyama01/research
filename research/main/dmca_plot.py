@@ -29,10 +29,7 @@ ic(all_combined_files)
 # ic(all_combined_files[-2:])
 
 # %%
-for file_name in all_combined_files[-2:]:
-    # ファイルのパスを設定
-    # file_path = "../../../data/睡眠段階まとめ_copy/2019A自宅_EEG_RRI.csv"
-
+for file_name in all_combined_files[3:4]:
     # ファイルの読み込み
     os.chdir(script_dir)
     os.chdir(DIR_EEG)  # ディレクトリの移動
@@ -56,10 +53,12 @@ for file_name in all_combined_files[-2:]:
     ]
 
     for label in labels:
+        # 列の指定
         column1 = label
+        column2 = "SDRR"
         # 解析対象となる列を抽出
         x1 = data[column1].values
-        x2 = data["meanRR"].values
+        x2 = data[column2].values
 
         # 時系列の長さ
         n = len(x1)
@@ -72,9 +71,9 @@ for file_name in all_combined_files[-2:]:
         axs[0, 0].set_ylabel(column1)
 
         axs[0, 1].plot(range(n), x2, color="blue")
-        axs[0, 1].set_title("RR-interval")
+        axs[0, 1].set_title(column2)
         axs[0, 1].set_xlabel("i")
-        axs[0, 1].set_ylabel("RRI [ms]")
+        axs[0, 1].set_ylabel(f"{column2} [ms]")
         # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
 
         # DMAで解析するスケールは奇数のみ
