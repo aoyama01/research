@@ -29,10 +29,12 @@ ic(all_combined_files)
 # ic(all_combined_files[-2:])
 
 # %%
-for file_name in all_combined_files[3:4]:
+for file_name in all_combined_files[11:12]:
+    # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
     # ファイルの読み込み
     os.chdir(script_dir)
     os.chdir(DIR_EEG)  # ディレクトリの移動
+    ic(file_name)
     # data = pd.read_csv(file_name, encoding=detect(file_name)["encoding"])
     # data = pd.read_csv(file_name, encoding="shift-jis")
     with open(file_name, "rb") as file:
@@ -55,7 +57,7 @@ for file_name in all_combined_files[3:4]:
     for label in labels:
         # 列の指定
         column1 = label
-        column2 = "SDRR"
+        column2 = "meanRR"
         # 解析対象となる列を抽出
         x1 = data[column1].values
         x2 = data[column2].values
@@ -66,14 +68,14 @@ for file_name in all_combined_files[3:4]:
         # プロット設定
         fig, axs = plt.subplots(2, 2, figsize=(10, 8))
         axs[0, 0].plot(range(n), x1, color="green")
-        axs[0, 0].set_title(column1)
-        axs[0, 0].set_xlabel("i")
-        axs[0, 0].set_ylabel(column1)
+        axs[0, 0].set_title(column1, fontsize=14)
+        axs[0, 0].set_xlabel("i", fontsize=12)
+        axs[0, 0].set_ylabel(column1, fontsize=12)
 
-        axs[0, 1].plot(range(n), x2, color="blue")
-        axs[0, 1].set_title(column2)
-        axs[0, 1].set_xlabel("i")
-        axs[0, 1].set_ylabel(f"{column2} [ms]")
+        axs[1, 0].plot(range(n), x2, color="blue")
+        axs[1, 0].set_title(column2, fontsize=14)
+        axs[1, 0].set_xlabel("i", fontsize=12)
+        axs[1, 0].set_ylabel(f"{column2} [ms]", fontsize=12)
         # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
 
         # DMAで解析するスケールは奇数のみ
@@ -119,12 +121,12 @@ for file_name in all_combined_files[3:4]:
         rho = F12_sq / (F1 * F2)
 
         # クロス相関プロット
-        axs[1, 0].plot(np.log10(s), rho, color="red")
-        axs[1, 0].set_ylim(-1, 1)
-        axs[1, 0].axhline(0, linestyle="--", color="gray")
-        axs[1, 0].set_title("Cross-correlation")
-        axs[1, 0].set_xlabel("log10(s)")
-        axs[1, 0].set_ylabel("rho")
+        axs[0, 1].plot(np.log10(s), rho, color="red")
+        axs[0, 1].set_ylim(-1, 1)
+        axs[0, 1].axhline(0, linestyle="--", color="gray")
+        axs[0, 1].set_title("Cross-correlation", fontsize=14)
+        axs[0, 1].set_xlabel("log10(s)", fontsize=12)
+        axs[0, 1].set_ylabel("rho", fontsize=12)
 
         # スケーリングプロット
         log10F1 = np.log10(F1)
@@ -138,9 +140,9 @@ for file_name in all_combined_files[3:4]:
         axs[1, 1].scatter(np.log10(s), log10F2, color="blue", label="log10(F2)", marker="s")
         axs[1, 1].scatter(np.log10(s), log10F12, color="red", label="log10(|F12|)/2", marker="o")
         axs[1, 1].set_ylim(y_min, y_max)
-        axs[1, 1].set_title("Scaling")
-        axs[1, 1].set_xlabel("log10(s)")
-        axs[1, 1].set_ylabel("log10(F(s))")
+        axs[1, 1].set_title("Scaling", fontsize=14)
+        axs[1, 1].set_xlabel("log10(s)", fontsize=12)
+        axs[1, 1].set_ylabel("log10(F(s))", fontsize=12)
         axs[1, 1].legend()
 
         plt.tight_layout()
