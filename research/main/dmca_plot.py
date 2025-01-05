@@ -8,6 +8,7 @@ import pandas as pd
 from chardet import detect
 from icecream import ic
 from scipy.signal import savgol_filter
+from scipy.stats import zscore
 
 ###
 # ic.disable()  # icによるデバッグを無効化
@@ -136,12 +137,22 @@ for file_name in all_combined_files[11:12]:
             log10F2 = np.log10(F2)
             log10F12 = np.log10(np.abs(F12_sq)) / 2
 
-            coeff = np.polyfit(np.log10(s), log10F12, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+            # Zスコアをもとに外れ値を除外
+            valid_ind = (
+                (np.abs(zscore(log10F1)) < 3) & (np.abs(zscore(log10F2)) < 3) & (np.abs(zscore(log10F12)) < 3)
+            )  # 外れ値除外後のインデックスを取得
+            log10F1 = log10F1[valid_ind]
+            log10F2 = log10F2[valid_ind]
+            log10F12 = log10F12[valid_ind]
+            s_clean = np.array(s)[valid_ind]  # sも対応するインデックスでフィルタリング
+            rho = rho[valid_ind]  # rhoも対応するインデックスでフィルタリング
+
+            coeff = np.polyfit(np.log10(s_clean), log10F12, 1)  # 回帰係数(polyfitは傾きと切片を返す)
             fitted = np.poly1d(coeff)  # 回帰直線の式
             ic(coeff[0])  # 回帰係数
 
             # 行0, 列col_idxにCross-correlationプロット
-            axs[0, col_idx].plot(np.log10(s), rho, color="red")
+            axs[0, col_idx].plot(np.log10(s_clean), rho, color="red")
             axs[0, col_idx].set_ylim(-1, 1)
             axs[0, col_idx].axhline(0, linestyle="--", color="gray")
             axs[0, col_idx].set_title(f"DMCA{order}\nCross-correlation", fontsize=12)
@@ -149,9 +160,9 @@ for file_name in all_combined_files[11:12]:
             axs[0, col_idx].set_ylabel("rho", fontsize=12)
 
             # 行1, 列col_idxにSlopeプロット
-            axs[1, col_idx].scatter(np.log10(s), log10F1, color="green", label="log10(F1)", marker="^")
-            axs[1, col_idx].scatter(np.log10(s), log10F2, color="blue", label="log10(F2)", marker="s")
-            axs[1, col_idx].scatter(np.log10(s), log10F12, color="red", label="log10(|F12|)/2", marker="o")
+            axs[1, col_idx].scatter(np.log10(s_clean), log10F1, color="green", label="log10(F1)", marker="^")
+            axs[1, col_idx].scatter(np.log10(s_clean), log10F2, color="blue", label="log10(F2)", marker="s")
+            axs[1, col_idx].scatter(np.log10(s_clean), log10F12, color="red", label="log10(|F12|)/2", marker="o")
             axs[1, col_idx].plot(np.log10(s), fitted(np.log10(s)), color="black", linestyle="--", label="Fitted")
             # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
             # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
