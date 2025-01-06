@@ -1,5 +1,6 @@
 # %%
 import os
+import re
 
 import japanize_matplotlib  # noqa: F401
 import matplotlib.pyplot as plt
@@ -31,8 +32,8 @@ ic(all_combined_files)
 # ic(all_combined_files[-2:])
 
 # %%
-for file_name in all_combined_files[11:12]:
-    # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
+# for file_name in all_combined_files[11:12]:
+for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
     # ファイルの読み込み
     os.chdir(script_dir)
     os.chdir(DIR_EEG)  # ディレクトリの移動
@@ -60,7 +61,7 @@ for file_name in all_combined_files[11:12]:
         "Sigma_Ratio",
     ]
 
-    for label in labels:
+    for label_ind, label in enumerate(labels):
         # 列の指定
         column1 = label
         column2 = "SDRR"
@@ -172,8 +173,16 @@ for file_name in all_combined_files[11:12]:
             axs[1, col_idx].set_ylabel("log10(F(s))", fontsize=12)
             axs[1, col_idx].legend()
 
-        # レイアウト調整
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
+        plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+
+        os.chdir(script_dir)
+        DIR_OUT = "../../../results/" + file_name.replace("自宅_EEG_RRI.csv", "")
+        if not os.path.exists(DIR_OUT):
+            os.makedirs(DIR_OUT)
+        os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+        plt.savefig(
+            f"DMCA_{column2}_{label_ind}_" + f'{re.match(r'^[^_-]+', label).group(0).lower()}' + ".png", dpi=300, bbox_inches="tight"
+        )  # labelの区切り文字の前までを小文字で取得
         plt.show()
 
 # %%
