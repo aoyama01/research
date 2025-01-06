@@ -22,7 +22,7 @@ os.chdir(script_dir)
 DIR_EEG = "../../../data/睡眠段階まとめ_copy"  # ディレクトリの指定
 
 # ディレクトリ内の全てのcsvファイルのファイル名を取得(2023年度のデータはおかしいので除く)
-all_combined_files = [f for f in os.listdir(DIR_EEG) if f.endswith("_EEG_RRI.csv") and "2023" not in f]
+all_combined_files = [f for f in os.listdir(DIR_EEG) if f.endswith("_EEG_RRI.csv")]
 ic(all_combined_files)
 
 # # %%
@@ -35,11 +35,11 @@ ic(all_combined_files)
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列)
 sleep_stage = ""
 # 16: meanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
-column_index_of_HRV_measure = 17
+column_index_of_HRV_measure = 16
 ### OPTIONS ###
 
-# [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1
-for file_name in all_combined_files[12:14]:
+# [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2
+for file_name in all_combined_files:
     # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
     # ファイルの読み込み
     os.chdir(script_dir)
@@ -70,8 +70,35 @@ for file_name in all_combined_files[12:14]:
 
     for label_ind, label in enumerate(labels):
         # 解析対象となる列を抽出
+        # x1 = data.iloc[:, 9 + label_ind].values
+        # x2 = data.iloc[:, column_index_of_HRV_measure].values
+
+        ### エラーチェック(列の取得も) ###
+        # 指定した列番号にデータが存在しない場合のチェック
+        if column_index_of_HRV_measure >= data.shape[1]:
+            print(f"列番号 {column_index_of_HRV_measure} が存在しません．スキップします．")
+            break  # 次のファイルへ
+
+        # 解析対象となる列を抽出
         x1 = data.iloc[:, 9 + label_ind].values
         x2 = data.iloc[:, column_index_of_HRV_measure].values
+
+        # x2の欠損値の割合が25%以上の場合のチェック
+        nan_ratio = np.isnan(x2).sum() / len(x2)  # 欠損値(nan)の割合
+        if nan_ratio > 0.25:
+            print(f"x2の欠損値の割合が25%以上 ({nan_ratio * 100:.1f}%) のため，スキップします．")
+            break  # 次のファイルへ
+
+        # データ欠損部分の補完により，途中が直線になっているものを除外したい
+        # 補完したらSDRRが小さくなるっぽいから(ほとんど1未満になってる感じ)，その箇所が多いデータを除外する
+        # sdrrの25%以上が1より小さい場合のチェック
+        threshold = 1  # SDRRのしきい値(0.5ぐらいに変更するのもあり)
+        sdrr = data["SDRR"].values
+        lesser_sdrr_ratio = np.sum(sdrr < threshold) / len(sdrr)  # ゼロの割合
+        if lesser_sdrr_ratio > 0.25:
+            print(f"{threshold}より小さいSDRRの割合が25%以上 ({lesser_sdrr_ratio * 100:.1f}%) のため，スキップします．")
+            break  # 次のファイルへ
+        ### エラーチェック(列の取得も) ###
 
         # DMCAの次数
         orders = [0, 2, 4]
