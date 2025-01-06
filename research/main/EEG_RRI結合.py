@@ -111,7 +111,7 @@ for file_name in all_files_RRI:
 
     # 統合データの作成
     TMP_EEG = TMP_EEG.iloc[1:].copy()
-    TMP_EEG["meanRR"] = meanRR
+    TMP_EEG["MeanRR"] = meanRR
     TMP_EEG["SDRR"] = SDRR
 
     # 統合データの書き出し

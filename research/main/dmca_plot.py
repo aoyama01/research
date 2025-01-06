@@ -1,6 +1,5 @@
 # %%
 import os
-import re
 
 import japanize_matplotlib  # noqa: F401
 import matplotlib.pyplot as plt
@@ -32,42 +31,47 @@ ic(all_combined_files)
 # ic(all_combined_files[-2:])
 
 # %%
-# for file_name in all_combined_files[11:12]:
-for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
+### OPTIONS ###
+# 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列)
+sleep_stage = ""
+# 16: meanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
+column_index_of_HRV_measure = 17
+### OPTIONS ###
+
+# [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1
+for file_name in all_combined_files[12:14]:
+    # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
     # ファイルの読み込み
     os.chdir(script_dir)
     os.chdir(DIR_EEG)  # ディレクトリの移動
-    ic(file_name)
+    print(file_name)
     # data = pd.read_csv(file_name, encoding=detect(file_name)["encoding"])
     # data = pd.read_csv(file_name, encoding="shift-jis")
     with open(file_name, "rb") as file:
         # ファイルのエンコーディングを検出
         detected_encoding = detect(file.read())["encoding"]
-    ic(detected_encoding)
+    print(detected_encoding)
     # 正しいエンコーディングでファイルを読み込む
     data = pd.read_csv(file_name, encoding=detected_encoding)
 
-    # 睡眠段階でフィルタリング
-    # sleep_stage = "N3"  # N1, N2, N3, R, W
-    # data = data[data.iloc[:, 2] == sleep_stage]  # 3列目が「sleep_stage」の行を抽出
+    # 睡眠段階でフィルタリング(睡眠段階で切り出さないときは空文字列)
+    if sleep_stage != "":
+        data = data[data.iloc[:, 2] == sleep_stage]  # 3列目が「sleep_stage」の行を抽出
 
-    # 横軸(data columns)の文字列
+    # 列名に対応した文字列(csvファイルによって列名の形式が異なるため，こっちで指定)
     labels = [
-        "Delta_Ratio",
-        "Theta_Ratio",
-        "Alpha_Ratio",
-        "Beta_Ratio",
-        "Gamma_Ratio",
-        "Sigma_Ratio",
+        "Delta",
+        "Theta",
+        "Alpha",
+        "Beta",
+        "Gamma",
+        "Sigma",
     ]
 
     for label_ind, label in enumerate(labels):
-        # 列の指定
-        column1 = label
-        column2 = "SDRR"
         # 解析対象となる列を抽出
-        x1 = data[column1].values
-        x2 = data[column2].values
+        x1 = data.iloc[:, 9 + label_ind].values
+        x2 = data.iloc[:, column_index_of_HRV_measure].values
 
         # DMCAの次数
         orders = [0, 2, 4]
@@ -80,17 +84,23 @@ for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combine
         # プロット設定
         fig, axs = plt.subplots(2, 4, figsize=(20, 10))
 
+        # 解析対象の列名を取得
+        column_name_of_brain_wave = f"{label} Ratio"
+        column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
+
+        fig.suptitle(f"DMCA to brain waves and {column_name_of_HRV_measure} ({file_name.replace('_EEG_RRI.csv', '')})", fontsize=18, y=0.935)
+
         # 行0列0にx1をプロット
         axs[0, 0].plot(range(n), x1, color="green")
-        axs[0, 0].set_title(column1, fontsize=14)
+        axs[0, 0].set_title(column_name_of_brain_wave, fontsize=14)
         axs[0, 0].set_xlabel("i", fontsize=12)
-        axs[0, 0].set_ylabel(column1, fontsize=12)
+        axs[0, 0].set_ylabel(column_name_of_brain_wave, fontsize=12)
 
         # 行1列0にx2をプロット
         axs[1, 0].plot(range(n), x2, color="blue")
-        axs[1, 0].set_title(column2, fontsize=14)
+        axs[1, 0].set_title(column_name_of_HRV_measure, fontsize=14)
         axs[1, 0].set_xlabel("i", fontsize=12)
-        axs[1, 0].set_ylabel(column2, fontsize=12)
+        axs[1, 0].set_ylabel(column_name_of_HRV_measure, fontsize=12)
         # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
 
         # 各 order に対応する Cross-correlation と Slope のプロット
@@ -176,12 +186,14 @@ for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combine
         plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
         os.chdir(script_dir)
-        DIR_OUT = "../../../results/" + file_name.replace("自宅_EEG_RRI.csv", "")
+        DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
         if not os.path.exists(DIR_OUT):
             os.makedirs(DIR_OUT)
         os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
         plt.savefig(
-            f"DMCA_{column2}_{label_ind}_" + f'{re.match(r'^[^_-]+', label).group(0).lower()}' + ".png", dpi=300, bbox_inches="tight"
+            f"DMCA{f"_{sleep_stage}" if sleep_stage != '' else ''}_{column_name_of_HRV_measure}_{label_ind}_{label}" + ".png",
+            dpi=300,
+            bbox_inches="tight",
         )  # labelの区切り文字の前までを小文字で取得
         plt.show()
 
