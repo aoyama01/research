@@ -185,9 +185,12 @@ for file_name in all_combined_files:
             s_clean = np.array(s)[valid_ind]  # sも対応するインデックスでフィルタリング
             rho = rho[valid_ind]  # rhoも対応するインデックスでフィルタリング
 
-            coeff = np.polyfit(np.log10(s_clean), log10F12, 1)  # 回帰係数(polyfitは傾きと切片を返す)
-            fitted = np.poly1d(coeff)  # 回帰直線の式
-            ic(coeff[0])  # 回帰係数
+            coeff1 = np.polyfit(np.log10(s_clean), log10F1, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+            coeff2 = np.polyfit(np.log10(s_clean), log10F2, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+            coeff12 = np.polyfit(np.log10(s_clean), log10F12, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+            fitted1 = np.poly1d(coeff1)  # 回帰直線の式
+            fitted2 = np.poly1d(coeff2)  # 回帰直線の式
+            fitted12 = np.poly1d(coeff12)  # 回帰直線の式
 
             # 行0, 列col_idxにCross-correlationプロット
             axs[0, col_idx].plot(np.log10(s_clean), rho, color="red")
@@ -201,11 +204,13 @@ for file_name in all_combined_files:
             axs[1, col_idx].scatter(np.log10(s_clean), log10F1, color="green", label="log10(F1)", marker="^")
             axs[1, col_idx].scatter(np.log10(s_clean), log10F2, color="blue", label="log10(F2)", marker="s")
             axs[1, col_idx].scatter(np.log10(s_clean), log10F12, color="red", label="log10(|F12|)/2", marker="o")
-            axs[1, col_idx].plot(np.log10(s), fitted(np.log10(s)), color="black", linestyle="--", label="Fitted")
+            axs[1, col_idx].plot(np.log10(s), fitted1(np.log10(s)), color="green", linestyle="--")
+            axs[1, col_idx].plot(np.log10(s), fitted2(np.log10(s)), color="blue", linestyle="--")
+            axs[1, col_idx].plot(np.log10(s), fitted12(np.log10(s)), color="red", linestyle="--")
             # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
             # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
             # axs[1, col_idx].set_ylim(y_min, y_max)
-            axs[1, col_idx].set_title(f"DMCA{order}\nSlope = {coeff[0]:.3f}", fontsize=12)
+            axs[1, col_idx].set_title(f"DMCA{order}\nSlope1 = {coeff1[0]:.3f},  Slope2 = {coeff2[0]:.3f},  Slope12 = {coeff12[0]:.3f}", fontsize=12)
             axs[1, col_idx].set_xlabel("log10(s)", fontsize=12)
             axs[1, col_idx].set_ylabel("log10(F(s))", fontsize=12)
             axs[1, col_idx].legend()
