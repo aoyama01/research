@@ -7,11 +7,12 @@ import numpy as np
 import pandas as pd
 from chardet import detect
 from icecream import ic
+from IPython.display import display
 from scipy.signal import savgol_filter
 from scipy.stats import zscore
 
 ###
-# ic.disable()  # icによるデバッグを無効化
+ic.disable()  # icによるデバッグを無効化
 ###
 
 # 実行中のスクリプトが存在するディレクトリを取得
@@ -32,25 +33,29 @@ ic(all_combined_files)
 
 # %%
 ### OPTIONS ###
-# 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列)
+# エラーチェックのみを行うかどうか
+is_error_check_only = False
+# グラフを出力するかどうか
+is_plot = False
+# 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 sleep_stage = ""
 # 16: meanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
-column_index_of_HRV_measure = 16
+column_index_of_HRV_measure = 17
 ### OPTIONS ###
 
 # [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2
-for file_name in all_combined_files:
+for file_ind, file_name in enumerate(all_combined_files):
     # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
     # ファイルの読み込み
     os.chdir(script_dir)
     os.chdir(DIR_EEG)  # ディレクトリの移動
-    print(file_name)
+    print(f"{file_name} の読み込み中...")
     # data = pd.read_csv(file_name, encoding=detect(file_name)["encoding"])
     # data = pd.read_csv(file_name, encoding="shift-jis")
     with open(file_name, "rb") as file:
         # ファイルのエンコーディングを検出
         detected_encoding = detect(file.read())["encoding"]
-    print(detected_encoding)
+    print(f"検出されたファイルエンコーディング: {detected_encoding}")
     # 正しいエンコーディングでファイルを読み込む
     data = pd.read_csv(file_name, encoding=detected_encoding)
 
@@ -76,6 +81,7 @@ for file_name in all_combined_files:
         ### エラーチェック(列の取得も) ###
         # 指定した列番号にデータが存在しない場合のチェック
         if column_index_of_HRV_measure >= data.shape[1]:
+            print(f"列番号 {column_index_of_HRV_measure} が存在しません．このファイルの処理をスキップします．\n")
             print(f"列番号 {column_index_of_HRV_measure} が存在しません．スキップします．")
             break  # 次のファイルへ
 
@@ -83,9 +89,14 @@ for file_name in all_combined_files:
         x1 = data.iloc[:, 9 + label_ind].values
         x2 = data.iloc[:, column_index_of_HRV_measure].values
 
+        # 解析対象の列名を取得
+        column_name_of_brain_wave = f"{label} Ratio"
+        column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
+
         # x2の欠損値の割合が25%以上の場合のチェック
         nan_ratio = np.isnan(x2).sum() / len(x2)  # 欠損値(nan)の割合
         if nan_ratio > 0.25:
+            print(f"{column_name_of_HRV_measure}の欠損値の割合が25%以上 ({nan_ratio * 100:.1f}%) のため，このファイルの処理をスキップします．\n")
             print(f"x2の欠損値の割合が25%以上 ({nan_ratio * 100:.1f}%) のため，スキップします．")
             break  # 次のファイルへ
 
@@ -96,8 +107,17 @@ for file_name in all_combined_files:
         sdrr = data["SDRR"].values
         lesser_sdrr_ratio = np.sum(sdrr < threshold) / len(sdrr)  # ゼロの割合
         if lesser_sdrr_ratio > 0.25:
+            print(
+                f"しきい値({threshold:.1f})より小さいSDRRの割合が25%以上 ({lesser_sdrr_ratio * 100:.1f}%) のため，このファイルの処理をスキップします．\n"
+            )
             print(f"{threshold}より小さいSDRRの割合が25%以上 ({lesser_sdrr_ratio * 100:.1f}%) のため，スキップします．")
             break  # 次のファイルへ
+
+        print("このファイルの処理でエラーは生じませんでした．\n")
+
+        # エラーチェックのみを行う場合はグラフを描画せずに終了
+        if is_error_check_only:
+            break  # デバッグ用
         ### エラーチェック(列の取得も) ###
 
         # DMCAの次数
@@ -108,27 +128,27 @@ for file_name in all_combined_files:
         n_s = 40
         s = np.unique(np.round(np.exp(np.linspace(np.log(5), np.log(n / 4), n_s)) / 2) * 2 + 1).astype(int)
 
-        # プロット設定
-        fig, axs = plt.subplots(2, 4, figsize=(20, 10))
-
         # 解析対象の列名を取得
-        column_name_of_brain_wave = f"{label} Ratio"
-        column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
+        # column_name_of_brain_wave = f"{label} Ratio"
+        # column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
 
-        fig.suptitle(f"DMCA to brain waves and {column_name_of_HRV_measure} ({file_name.replace('_EEG_RRI.csv', '')})", fontsize=18, y=0.935)
+        if is_plot:
+            # プロット設定
+            fig, axs = plt.subplots(2, 4, figsize=(20, 10))
+            fig.suptitle(f"DMCA to brain waves and {column_name_of_HRV_measure} ({file_name.replace('_EEG_RRI.csv', '')})", fontsize=18, y=0.935)
 
-        # 行0列0にx1をプロット
-        axs[0, 0].plot(range(n), x1, color="green")
-        axs[0, 0].set_title(column_name_of_brain_wave, fontsize=14)
-        axs[0, 0].set_xlabel("i", fontsize=12)
-        axs[0, 0].set_ylabel(column_name_of_brain_wave, fontsize=12)
+            # 行0列0にx1をプロット
+            axs[0, 0].plot(range(n), x1, color="green")
+            axs[0, 0].set_title(column_name_of_brain_wave, fontsize=14)
+            axs[0, 0].set_xlabel("i", fontsize=12)
+            axs[0, 0].set_ylabel(column_name_of_brain_wave, fontsize=12)
 
-        # 行1列0にx2をプロット
-        axs[1, 0].plot(range(n), x2, color="blue")
-        axs[1, 0].set_title(column_name_of_HRV_measure, fontsize=14)
-        axs[1, 0].set_xlabel("i", fontsize=12)
-        axs[1, 0].set_ylabel(column_name_of_HRV_measure, fontsize=12)
-        # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
+            # 行1列0にx2をプロット
+            axs[1, 0].plot(range(n), x2, color="blue")
+            axs[1, 0].set_title(column_name_of_HRV_measure, fontsize=14)
+            axs[1, 0].set_xlabel("i", fontsize=12)
+            axs[1, 0].set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=12)
+            # 途中が直線になっているのは，データに欠損があり，その部分を補完しているため
 
         # 各 order に対応する Cross-correlation と Slope のプロット
         for col_idx, order in enumerate(orders, start=1):
@@ -199,34 +219,46 @@ for file_name in all_combined_files:
             axs[0, col_idx].set_title(f"DMCA{order}\nCross-correlation", fontsize=12)
             axs[0, col_idx].set_xlabel("log10(s)", fontsize=12)
             axs[0, col_idx].set_ylabel("rho", fontsize=12)
+            if is_plot:
+                # 行0, 列col_idxにCross-correlationプロット
+                axs[0, col_idx].plot(np.log10(s_clean), rho, color="red")
+                axs[0, col_idx].set_ylim(-1, 1)
+                axs[0, col_idx].axhline(0, linestyle="--", color="gray")
+                axs[0, col_idx].set_title(f"DMCA{order}\nCross-correlation", fontsize=12)
+                axs[0, col_idx].set_xlabel("log10(s)", fontsize=12)
+                axs[0, col_idx].set_ylabel("rho", fontsize=12)
+                axs[0, col_idx].legend(title=f"Max:  {max(rho):.3f}\nMin:  {min(rho):.3f}", title_fontsize=10.5)
 
-            # 行1, 列col_idxにSlopeプロット
-            axs[1, col_idx].scatter(np.log10(s_clean), log10F1, color="green", label="log10(F1)", marker="^")
-            axs[1, col_idx].scatter(np.log10(s_clean), log10F2, color="blue", label="log10(F2)", marker="s")
-            axs[1, col_idx].scatter(np.log10(s_clean), log10F12, color="red", label="log10(|F12|)/2", marker="o")
-            axs[1, col_idx].plot(np.log10(s), fitted1(np.log10(s)), color="green", linestyle="--")
-            axs[1, col_idx].plot(np.log10(s), fitted2(np.log10(s)), color="blue", linestyle="--")
-            axs[1, col_idx].plot(np.log10(s), fitted12(np.log10(s)), color="red", linestyle="--")
-            # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
-            # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
-            # axs[1, col_idx].set_ylim(y_min, y_max)
-            axs[1, col_idx].set_title(f"DMCA{order}\nSlope1 = {coeff1[0]:.3f},  Slope2 = {coeff2[0]:.3f},  Slope12 = {coeff12[0]:.3f}", fontsize=12)
-            axs[1, col_idx].set_xlabel("log10(s)", fontsize=12)
-            axs[1, col_idx].set_ylabel("log10(F(s))", fontsize=12)
-            axs[1, col_idx].legend()
+                # 行1, 列col_idxにSlopeプロット
+                axs[1, col_idx].scatter(np.log10(s_clean), log10F1, color="green", label="log10(F1)", marker="^")
+                axs[1, col_idx].scatter(np.log10(s_clean), log10F2, color="blue", label="log10(F2)", marker="s")
+                axs[1, col_idx].scatter(np.log10(s_clean), log10F12, color="red", label="log10(|F12|)/2", marker="o")
+                axs[1, col_idx].plot(np.log10(s), fitted1(np.log10(s)), color="green", linestyle="--")
+                axs[1, col_idx].plot(np.log10(s), fitted2(np.log10(s)), color="blue", linestyle="--")
+                axs[1, col_idx].plot(np.log10(s), fitted12(np.log10(s)), color="red", linestyle="--")
+                # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
+                # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
+                # axs[1, col_idx].set_ylim(y_min, y_max)
+                axs[1, col_idx].set_title(
+                    f"DMCA{order}\nSlope1 = {coeff1[0]:.3f},  Slope2 = {coeff2[0]:.3f},  Slope12 = {coeff12[0]:.3f}", fontsize=12
+                )
+                axs[1, col_idx].set_xlabel("log10(s)", fontsize=12)
+                axs[1, col_idx].set_ylabel("log10(F(s))", fontsize=12)
+                axs[1, col_idx].legend()
 
-        plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+        if is_plot:
+            plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
-        os.chdir(script_dir)
-        DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
-        if not os.path.exists(DIR_OUT):
-            os.makedirs(DIR_OUT)
-        os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
-        plt.savefig(
-            f"DMCA{f"_{sleep_stage}" if sleep_stage != '' else ''}_{column_name_of_HRV_measure}_{label_ind}_{label}" + ".png",
-            dpi=300,
-            bbox_inches="tight",
-        )  # labelの区切り文字の前までを小文字で取得
-        plt.show()
+            os.chdir(script_dir)
+            DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
+            if not os.path.exists(DIR_OUT):
+                os.makedirs(DIR_OUT)
+            os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+            plt.savefig(
+                f"DMCA{f"_{sleep_stage}" if sleep_stage != '' else ''}_{column_name_of_HRV_measure}_{label_ind}_{label}" + ".png",
+                dpi=300,
+                bbox_inches="tight",
+            )  # labelの区切り文字の前までを小文字で取得
+            plt.show()
 
 # %%
