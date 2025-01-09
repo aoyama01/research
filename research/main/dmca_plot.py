@@ -43,6 +43,15 @@ sleep_stage = ""
 column_index_of_HRV_measure = 17
 ### OPTIONS ###
 
+# 相関係数の積分値を格納する3次元配列[ファイル数, ラベル数, 次数]
+rho_integrated = np.zeros((len(all_combined_files), 6, 3))
+
+# Slopeを格納する3次元配列[ファイル数, ラベル数, 次数]
+slopes1 = np.zeros((len(all_combined_files), 6, 3))
+slopes2 = np.zeros((len(all_combined_files), 6, 3))
+slopes12 = np.zeros((len(all_combined_files), 6, 3))
+mask = np.ones(len(all_combined_files), dtype=bool)
+
 # [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2
 for file_ind, file_name in enumerate(all_combined_files):
     # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
@@ -82,7 +91,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         # 指定した列番号にデータが存在しない場合のチェック
         if column_index_of_HRV_measure >= data.shape[1]:
             print(f"列番号 {column_index_of_HRV_measure} が存在しません．このファイルの処理をスキップします．\n")
-            print(f"列番号 {column_index_of_HRV_measure} が存在しません．スキップします．")
+            mask[file_ind] = False
             break  # 次のファイルへ
 
         # 解析対象となる列を抽出
@@ -97,7 +106,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         nan_ratio = np.isnan(x2).sum() / len(x2)  # 欠損値(nan)の割合
         if nan_ratio > 0.25:
             print(f"{column_name_of_HRV_measure}の欠損値の割合が25%以上 ({nan_ratio * 100:.1f}%) のため，このファイルの処理をスキップします．\n")
-            print(f"x2の欠損値の割合が25%以上 ({nan_ratio * 100:.1f}%) のため，スキップします．")
+            mask[file_ind] = False
             break  # 次のファイルへ
 
         # データ欠損部分の補完により，途中が直線になっているものを除外したい
@@ -110,7 +119,7 @@ for file_ind, file_name in enumerate(all_combined_files):
             print(
                 f"しきい値({threshold:.1f})より小さいSDRRの割合が25%以上 ({lesser_sdrr_ratio * 100:.1f}%) のため，このファイルの処理をスキップします．\n"
             )
-            print(f"{threshold}より小さいSDRRの割合が25%以上 ({lesser_sdrr_ratio * 100:.1f}%) のため，スキップします．")
+            mask[file_ind] = False
             break  # 次のファイルへ
 
         print("このファイルの処理でエラーは生じませんでした．\n")
@@ -212,13 +221,14 @@ for file_ind, file_name in enumerate(all_combined_files):
             fitted2 = np.poly1d(coeff2)  # 回帰直線の式
             fitted12 = np.poly1d(coeff12)  # 回帰直線の式
 
-            # 行0, 列col_idxにCross-correlationプロット
-            axs[0, col_idx].plot(np.log10(s_clean), rho, color="red")
-            axs[0, col_idx].set_ylim(-1, 1)
-            axs[0, col_idx].axhline(0, linestyle="--", color="gray")
-            axs[0, col_idx].set_title(f"DMCA{order}\nCross-correlation", fontsize=12)
-            axs[0, col_idx].set_xlabel("log10(s)", fontsize=12)
-            axs[0, col_idx].set_ylabel("rho", fontsize=12)
+            # 相関係数の積分値を格納
+            rho_integrated[file_ind, label_ind, col_idx - 1] = np.trapz(rho, np.log10(s_clean))
+
+            # Slopeを格納
+            slopes1[file_ind, label_ind, col_idx - 1] = coeff1[0]
+            slopes2[file_ind, label_ind, col_idx - 1] = coeff2[0]
+            slopes12[file_ind, label_ind, col_idx - 1] = coeff12[0]
+
             if is_plot:
                 # 行0, 列col_idxにCross-correlationプロット
                 axs[0, col_idx].plot(np.log10(s_clean), rho, color="red")
@@ -260,5 +270,59 @@ for file_ind, file_name in enumerate(all_combined_files):
                 bbox_inches="tight",
             )  # labelの区切り文字の前までを小文字で取得
             plt.show()
+
+# slopesの出力
+# print(slopes1)
+# print(slopes2)
+# print(slopes12)
+
+# %%
+# 正常なデータのみを抽出
+rho_integrated_masked = rho_integrated[mask]
+slopes1_masked = slopes1[mask]
+slopes2_masked = slopes2[mask]
+slopes12_masked = slopes12[mask]
+
+print(rho_integrated_masked)
+
+print(slopes1_masked)
+print(slopes1_masked.shape)
+
+print(slopes2_masked)
+print(slopes2_masked.shape)
+
+print(slopes12_masked)
+print(slopes12_masked.shape)
+
+display(slopes1_masked, slopes2_masked, slopes12_masked)
+
+# %%
+# # 出力関数をカスタマイズ
+# ic.configureOutput(outputFunction=lambda x: print(x, flush=True))
+
+# DataFrameに変換する際の行名と列名
+row_names = labels
+col_names = ["DMCA0", "DMCA2", "DMCA4"]
+
+rho_integrated_mean = np.mean(rho_integrated_masked, axis=0)
+rho_integrated_mean_df = pd.DataFrame(rho_integrated_mean, index=row_names, columns=col_names)
+
+slopes1_mean = np.mean(slopes1_masked, axis=0)
+slopes1_mean_df = pd.DataFrame(slopes1_mean, index=row_names, columns=col_names)
+
+slopes2_mean = np.mean(slopes2_masked, axis=0)
+slopes2_mean_df = pd.DataFrame(slopes2_mean, index=row_names, columns=col_names)
+
+slopes12_mean = np.mean(slopes12_masked, axis=0)
+slopes12_mean_df = pd.DataFrame(slopes12_mean, index=row_names, columns=col_names)
+
+print(f"相関係数の積分 (EEG & {column_name_of_HRV_measure}) の平均値")
+display(rho_integrated_mean_df.round(3))
+print("Slope1 (EEG) の平均値")
+display(slopes1_mean_df.round(3))
+print(f"\nSlope2 ({column_name_of_HRV_measure}) の平均値")
+display(slopes2_mean_df.round(3))
+print(f"\nSlope12 (EEG & {column_name_of_HRV_measure}) の平均値")
+display(slopes12_mean_df.round(3))
 
 # %%
