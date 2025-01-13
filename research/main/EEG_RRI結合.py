@@ -90,7 +90,7 @@ for file_name in all_files_RRI:
     f_resamp = 2
     time1 = min(time_RRI_rev)
     time2 = max(time_RRI_rev)
-    time_r = pd.date_range(time1, time2, freq=f"{1/f_resamp}S")
+    time_r = pd.date_range(time1, time2, freq=f"{1 / f_resamp}S")
     RRI_r = np.interp(time_r.astype(np.int64) / 1e9, time_RRI_rev.astype(np.int64) / 1e9, RRI_rev)
 
     # RRIの平均値とSD
@@ -117,7 +117,6 @@ for file_name in all_files_RRI:
     # 統合データの書き出し
     os.chdir(script_dir)
     os.chdir(DIR_OUT)
-    TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
     TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
 
 # %%
