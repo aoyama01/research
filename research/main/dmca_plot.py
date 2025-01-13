@@ -1,4 +1,4 @@
-# %%
+# %% ライブラリのインポート，ディレクトリの設定，ファイルの読み込み
 import os
 
 import japanize_matplotlib  # noqa: F401
@@ -27,7 +27,7 @@ all_combined_files = [f for f in os.listdir(DIR_EEG) if f.endswith("_EEG_RRI.csv
 ic(all_combined_files)
 
 
-# %%
+# %% OPTIONS
 ### OPTIONS ###
 # エラーチェックのみを行うかどうか
 is_error_check_only = False
@@ -41,6 +41,7 @@ sleep_stage = ""
 column_index_of_HRV_measure = 17
 ### OPTIONS ###
 
+# %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
 # 相関係数を格納する4次元配列[ファイル数, ラベル数, 次数, スケール]
 rho_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))  # 40はスケールの数(len(s))
 
@@ -53,8 +54,9 @@ slopes2 = np.zeros((len(all_combined_files), 6, 3))
 slopes12 = np.zeros((len(all_combined_files), 6, 3))
 mask = np.ones(len(all_combined_files), dtype=bool)
 
-# [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2
+# ファイルごとに一連の処理を行う
 for file_ind, file_name in enumerate(all_combined_files):
+    # [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2
     # for file_name in all_combined_files[3:4] + all_combined_files[5:6] + all_combined_files[7:12]:
     # ファイルの読み込み
     os.chdir(script_dir)
@@ -281,22 +283,14 @@ for file_ind, file_name in enumerate(all_combined_files):
             # グラフの表示
             plt.show()
 
-# slopesの出力
-# print(slopes1)
-# print(slopes2)
-# print(slopes12)
 
-
-# %%
+# %% rhoのマスクと平均値の計算
 rho_4d_array_masked = rho_4d_array[mask]
-# print(rho_4d_array_masked)
-print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
-
 rho_maen = np.mean(rho_4d_array_masked, axis=0)
+print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
 print(f"rho_maen.shape: {rho_maen.shape}")
 
-# %%
-# # 脳波ごとに，DMCA(0次，2次，4次)の相関係数の平均値をプロット
+# %% 脳波ごとに，DMCA(0次，2次，4次)の相関係数の平均値をプロット
 # for label_ind, label in enumerate(labels):
 #     fig, axs = plt.subplots(1, 3, figsize=(20, 8))
 #     fig.suptitle(f"DMCA to {label} Ratio and {column_name_of_HRV_measure}", fontsize=18, y=0.935)
@@ -330,8 +324,7 @@ print(f"rho_maen.shape: {rho_maen.shape}")
 #     plt.show()
 
 
-# %%
-# DMCA(4次)の相関係数の平均値をプロット
+# %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
 fig, axs = plt.subplots(2, 3, figsize=(20, 14))
 fig.suptitle(
     f"Mean XCorr of DMCA4 to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {sleep_stage})' if sleep_stage != '' else ''}",
@@ -382,15 +375,12 @@ plt.show()
 # print("x軸の範囲:", xlim)
 
 
-# %%
+# %% 相関係数の積分値およびSlopeの平均値を表として出力
 # 正常なデータのみを抽出
 rho_integrated_masked = rho_integrated[mask]
 slopes1_masked = slopes1[mask]
 slopes2_masked = slopes2[mask]
 slopes12_masked = slopes12[mask]
-
-# # 出力関数をカスタマイズ
-# ic.configureOutput(outputFunction=lambda x: print(x, flush=True))
 
 # DataFrameに変換する際の行名と列名
 row_names = labels
