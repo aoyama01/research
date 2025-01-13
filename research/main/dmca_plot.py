@@ -26,10 +26,6 @@ DIR_EEG = "../../../data/睡眠段階まとめ_copy"  # ディレクトリの指
 all_combined_files = [f for f in os.listdir(DIR_EEG) if f.endswith("_EEG_RRI.csv")]
 ic(all_combined_files)
 
-# # %%
-# os.getcwd()
-# os.chdir(DIR_EEG)  # ディレクトリの移動
-# ic(all_combined_files[-2:])
 
 # %%
 ### OPTIONS ###
@@ -39,9 +35,12 @@ is_error_check_only = False
 is_plot = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 sleep_stage = ""
-# 16: meanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
+# 16: MeanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
 column_index_of_HRV_measure = 17
 ### OPTIONS ###
+
+# 相関係数を格納する4次元配列[ファイル数, ラベル数, 次数, スケール]
+rho_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))  # 40はスケールの数(len(s))
 
 # 相関係数の積分値を格納する3次元配列[ファイル数, ラベル数, 次数]
 rho_integrated = np.zeros((len(all_combined_files), 6, 3))
@@ -136,6 +135,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         n = len(x1)  # 時系列の長さ
         n_s = 40
         s = np.unique(np.round(np.exp(np.linspace(np.log(5), np.log(n / 4), n_s)) / 2) * 2 + 1).astype(int)
+        print(f"スケールの計算: {len(s)}")
 
         # 解析対象の列名を取得
         # column_name_of_brain_wave = f"{label} Ratio"
@@ -204,6 +204,11 @@ for file_ind, file_name in enumerate(all_combined_files):
             log10F2 = np.log10(F2)
             log10F12 = np.log10(np.abs(F12_sq)) / 2
 
+            # 相関係数を格納
+            rho_padded = np.zeros(40)  # 長さ34にゼロ埋め
+            rho_padded[: len(rho)] = rho  # rho の値を先頭に埋め込む
+            rho_4d_array[file_ind, label_ind, col_idx - 1] = rho_padded
+
             # Zスコアをもとに外れ値を除外
             valid_ind = (
                 (np.abs(zscore(log10F1)) < 3) & (np.abs(zscore(log10F2)) < 3) & (np.abs(zscore(log10F12)) < 3)
@@ -259,22 +264,116 @@ for file_ind, file_name in enumerate(all_combined_files):
         if is_plot:
             plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
+            # グラフの保存
             os.chdir(script_dir)
             DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
             if not os.path.exists(DIR_OUT):
                 os.makedirs(DIR_OUT)
             os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
             plt.savefig(
-                f"DMCA{f"_{sleep_stage}" if sleep_stage != '' else ''}_{column_name_of_HRV_measure}_{label_ind}_{label}" + ".png",
+                f"DMCA_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}_{label_ind}_{label}" + ".png",
                 dpi=300,
                 bbox_inches="tight",
-            )  # labelの区切り文字の前までを小文字で取得
+            )
             plt.show()
 
 # slopesの出力
 # print(slopes1)
 # print(slopes2)
 # print(slopes12)
+
+
+# %%
+rho_4d_array_masked = rho_4d_array[mask]
+# print(rho_4d_array_masked)
+print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
+
+rho_maen = np.mean(rho_4d_array_masked, axis=0)
+print(f"rho_maen.shape: {rho_maen.shape}")
+
+# %%
+# # 脳波ごとに，DMCA(0次，2次，4次)の相関係数の平均値をプロット
+# for label_ind, label in enumerate(labels):
+#     fig, axs = plt.subplots(1, 3, figsize=(20, 8))
+#     fig.suptitle(f"DMCA to {label} Ratio and {column_name_of_HRV_measure}", fontsize=18, y=0.935)
+
+#     for col_idx, order in enumerate(orders):
+#         axs[col_idx].plot(np.log10(s[1:]), rho_maen[label_ind][col_idx][1 : len(s)], color="red")
+#         # axs[col_idx].set_xlim(0.612110372200782, 2.523022279175993)
+#         axs[col_idx].set_ylim(-1, 1)
+#         axs[col_idx].axhline(0, linestyle="--", color="gray")
+#         axs[col_idx].set_title(f"DMCA{order}\nCross-correlation", fontsize=12)
+#         axs[col_idx].set_xlabel("log10(s)", fontsize=12)
+#         axs[col_idx].set_ylabel("rho", fontsize=12)
+#         axs[col_idx].legend(
+#             title=f"Max:  {max(rho_maen[label_ind][col_idx][1 : len(s)]):.3f}\nMin:  {min(rho_maen[label_ind][col_idx][1 : len(s)]):.3f}",
+#             title_fontsize=10.5,
+#         )
+
+#     plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+
+#     # グラフの保存
+#     os.chdir(script_dir)
+#     DIR_OUT = "../../../results/Average/"
+#     if not os.path.exists(DIR_OUT):
+#         os.makedirs(DIR_OUT)
+#     os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+#     plt.savefig(
+#         f"DMCA_XCorrMean{f'_{sleep_stage}' if sleep_stage != '' else ''}_{column_name_of_HRV_measure}_{label_ind}_{label}" + ".png",
+#         dpi=300,
+#         bbox_inches="tight",
+#     )
+#     plt.show()
+
+
+# %%
+# DMCA(4次)の相関係数の平均値をプロット
+fig, axs = plt.subplots(2, 3, figsize=(20, 14))
+fig.suptitle(
+    f"Mean XCorr of DMCA4 to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {sleep_stage})' if sleep_stage != '' else ''}",
+    fontsize=18,
+    y=0.935,
+)
+
+for label_ind, label in enumerate(labels):
+    # 4次の結果(rho_maen[label_ind][2])のみを表示
+    rho_mean_4th = rho_maen[label_ind][2][1 : len(s)]
+
+    # [label_ind(li)] を [label_ind/3, label_ind%3]
+
+    axs[label_ind // 3, label_ind % 3].plot(np.log10(s[1:]), rho_mean_4th, color="red")
+    # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
+    axs[label_ind // 3, label_ind % 3].set_ylim(-1, 1)
+    axs[label_ind // 3, label_ind % 3].axhline(0, linestyle="--", color="gray")
+    axs[label_ind // 3, label_ind % 3].set_title(f"{label} Ratio", fontsize=16)
+    axs[label_ind // 3, label_ind % 3].set_xlabel("log10(s)", fontsize=14)
+    axs[label_ind // 3, label_ind % 3].set_ylabel("rho", fontsize=14)
+    axs[label_ind // 3, label_ind % 3].legend(
+        title=f"Max:  {max(rho_mean_4th):.3f}\nMin:  {min(rho_mean_4th):.3f}",
+        title_fontsize=12,
+    )
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+
+# グラフの保存と表示
+os.chdir(script_dir)
+DIR_OUT = "../../../results/Mean/"
+if not os.path.exists(DIR_OUT):
+    os.makedirs(DIR_OUT)
+os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+plt.savefig(
+    f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}" + ".png",
+    dpi=300,
+    bbox_inches="tight",
+)
+plt.show()
+
+
+# %%
+# x軸の範囲を取得
+# xlim = axs[2].get_xlim()
+# print("x軸の範囲:", xlim)
+
 
 # %%
 # 正常なデータのみを抽出
@@ -283,20 +382,6 @@ slopes1_masked = slopes1[mask]
 slopes2_masked = slopes2[mask]
 slopes12_masked = slopes12[mask]
 
-print(rho_integrated_masked)
-
-print(slopes1_masked)
-print(slopes1_masked.shape)
-
-print(slopes2_masked)
-print(slopes2_masked.shape)
-
-print(slopes12_masked)
-print(slopes12_masked.shape)
-
-display(slopes1_masked, slopes2_masked, slopes12_masked)
-
-# %%
 # # 出力関数をカスタマイズ
 # ic.configureOutput(outputFunction=lambda x: print(x, flush=True))
 
