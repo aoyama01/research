@@ -33,6 +33,8 @@ ic(all_combined_files)
 is_error_check_only = False
 # グラフを出力するかどうか
 is_plot = False
+# グラフを保存するかどうか
+is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 sleep_stage = ""
 # 16: MeanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
@@ -264,17 +266,19 @@ for file_ind, file_name in enumerate(all_combined_files):
         if is_plot:
             plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
-            # グラフの保存
-            os.chdir(script_dir)
-            DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
-            if not os.path.exists(DIR_OUT):
-                os.makedirs(DIR_OUT)
-            os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
-            plt.savefig(
-                f"DMCA_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}_{label_ind}_{label}" + ".png",
-                dpi=300,
-                bbox_inches="tight",
-            )
+            if is_savefig:
+                # グラフの保存
+                os.chdir(script_dir)
+                DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
+                if not os.path.exists(DIR_OUT):
+                    os.makedirs(DIR_OUT)
+                os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+                plt.savefig(
+                    f"DMCA_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}_{label_ind}_{label}" + ".png",
+                    dpi=300,
+                    bbox_inches="tight",
+                )
+            # グラフの表示
             plt.show()
 
 # slopesの出力
@@ -356,16 +360,19 @@ for label_ind, label in enumerate(labels):
 plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
 # グラフの保存と表示
-os.chdir(script_dir)
-DIR_OUT = "../../../results/Mean/"
-if not os.path.exists(DIR_OUT):
-    os.makedirs(DIR_OUT)
-os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
-plt.savefig(
-    f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}" + ".png",
-    dpi=300,
-    bbox_inches="tight",
-)
+if is_savefig:
+    # グラフの保存
+    os.chdir(script_dir)
+    DIR_OUT = "../../../results/Mean/"
+    if not os.path.exists(DIR_OUT):
+        os.makedirs(DIR_OUT)
+    os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+    plt.savefig(
+        f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}" + ".png",
+        dpi=300,
+        bbox_inches="tight",
+    )
+# グラフの表示
 plt.show()
 
 
