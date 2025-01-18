@@ -38,7 +38,7 @@ is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 sleep_stage = ""
 # 16: MeanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
-column_index_of_HRV_measure = 17
+column_index_of_HRV_measure = 16
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -99,6 +99,13 @@ for file_ind, file_name in enumerate(all_combined_files):
 
         # 解析対象となる列を抽出
         x1 = data.iloc[:, 9 + label_ind].values
+        # # 睡眠段階を解析する場合
+        # x1 = data.iloc[:, 2].values
+        # # 置き換え用の辞書を定義
+        # replace_dict = {"W": 0, "R": -1, "N1": -2, "N2": -3, "N3": -4}
+        # # 辞書を使って置き換え
+        # x1 = [replace_dict[element] for element in x1]
+
         x2 = data.iloc[:, column_index_of_HRV_measure].values
 
         # 解析対象の列名を取得
