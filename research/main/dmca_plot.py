@@ -360,7 +360,10 @@ for order in orders:
 
         # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
 
+        # rhoの平均をプロット
         axs[0, label_ind].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
+        # rhoの平均の積分時系列をプロットしたい場合
+        # axs[0, label_ind].plot(np.log10(s[1:]), np.cumsum(rho_mean_dmca4), color="red", linestyle="None", marker="x", ms=10)
         # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
         axs[0, label_ind].set_ylim(-1, 1)
         axs[0, label_ind].axhline(0, linestyle="--", color="gray")
