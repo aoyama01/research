@@ -44,6 +44,11 @@ column_index_of_HRV_measure = 16
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
+# 全ファイルの平均を求めるための変数を用意
+# ゆらぎ関数を格納する4次元配列[ファイル数, ラベル数, 次数, スケール(総数がファイルごとに異なるので余分にとってる．プロット時にはsliceオブジェクトで範囲を指定する)]
+log10F1_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))
+log10F2_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))
+log10F12_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))
 # 相関係数を格納する4次元配列[ファイル数, ラベル数, 次数, スケール]
 rho_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))  # 40はスケールの数(len(s))
 # 相関係数の積分値を格納する3次元配列[ファイル数, ラベル数, 次数]
@@ -221,7 +226,18 @@ for file_ind, file_name in enumerate(all_combined_files):
             log10F2 = np.log10(F2)
             log10F12 = np.log10(np.abs(F12_sq)) / 2
 
-            # 相関係数を格納
+            # ゆらぎ関数を格納(全ファイルの平均を求めるため)
+            log10F1_padded = np.zeros(40)  # 長さ34にゼロ埋め
+            log10F1_padded[: len(log10F1)] = log10F1  # rho の値を先頭に埋め込む
+            log10F1_4d_array[file_ind, label_ind, col_idx - 1] = log10F1_padded
+            log10F2_padded = np.zeros(40)  # 長さ34にゼロ埋め
+            log10F2_padded[: len(log10F2)] = log10F2  # rho の値を先頭に埋め込む
+            log10F2_4d_array[file_ind, label_ind, col_idx - 1] = log10F2_padded
+            log10F12_padded = np.zeros(40)  # 長さ34にゼロ埋め
+            log10F12_padded[: len(log10F12)] = log10F12  # rho の値を先頭に埋め込む
+            log10F12_4d_array[file_ind, label_ind, col_idx - 1] = log10F12_padded
+
+            # 相関係数を格納(全ファイルの平均を求めるため)
             rho_padded = np.zeros(40)  # 長さ34にゼロ埋め
             rho_padded[: len(rho)] = rho  # rho の値を先頭に埋め込む
             rho_4d_array[file_ind, label_ind, col_idx - 1] = rho_padded
@@ -235,6 +251,9 @@ for file_ind, file_name in enumerate(all_combined_files):
             log10F12 = log10F12[valid_ind]
             s_clean = np.array(s)[valid_ind]  # sも対応するインデックスでフィルタリング
             rho = rho[valid_ind]  # rhoも対応するインデックスでフィルタリング
+
+            # 相関係数の積分値を格納
+            rho_integrated[file_ind, label_ind, col_idx - 1] = np.trapz(rho, np.log10(s_clean))
 
             coeff1 = np.polyfit(np.log10(s_clean), log10F1, 1)  # 回帰係数(polyfitは傾きと切片を返す)
             coeff2 = np.polyfit(np.log10(s_clean), log10F2, 1)  # 回帰係数(polyfitは傾きと切片を返す)
@@ -296,15 +315,106 @@ for file_ind, file_name in enumerate(all_combined_files):
         # break  # 睡眠段階で解析するから，ラベルのループは1回でOK
 
 
-# %% rhoのマスクと平均値の計算
+# %% Fとrhoのマスクと平均値の計算
+log10F1_4d_array_masked = log10F1_4d_array[mask]
+log10F2_4d_array_masked = log10F2_4d_array[mask]
+log10F12_4d_array_masked = log10F12_4d_array[mask]
 rho_4d_array_masked = rho_4d_array[mask]
-rho_maen = np.mean(rho_4d_array_masked, axis=0)
+
+log10F1_mean = np.mean(log10F1_4d_array_masked, axis=0)
+log10F2_mean = np.mean(log10F2_4d_array_masked, axis=0)
+log10F12_mean = np.mean(log10F12_4d_array_masked, axis=0)
 rho_mean = np.mean(rho_4d_array_masked, axis=0)
 
 print(f"log10F12_4d_array_masked: {log10F12_4d_array_masked.shape}")
 print(f"log10F12_mean: {log10F12_mean.shape}")
 print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
-print(f"rho_maen.shape: {rho_maen.shape}")
+print(f"rho_maen.shape: {rho_mean.shape}")
+
+
+# %% すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
+
+# プロットする範囲をsliceオブジェクトにする
+range_slice = slice(1, len(s))
+print(f"len(s): {len(s)}")
+
+# DMCAの次数(0, 2, 4)
+# order = 2
+for order in orders:
+    fig, axs = plt.subplots(2, 5, figsize=(30, 14))
+    fig.suptitle(
+        f"Mean XCorr of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
+        fontsize=18,
+        y=0.935,
+    )
+
+    for label_ind, label in enumerate(labels[:5]):
+        # 4次の結果(rho_mean[label_ind][2])のみを表示
+        # order // 2 の処理 → 0 // 2 = 0,  2 // 2 = 1,  4 // 2 = 2
+        log10F1_mean_dmca4 = log10F1_mean[label_ind][order // 2][range_slice]
+        log10F2_mean_dmca4 = log10F2_mean[label_ind][order // 2][range_slice]
+        log10F12_mean_dmca4 = log10F12_mean[label_ind][order // 2][range_slice]
+        rho_mean_dmca4 = rho_mean[label_ind][order // 2][range_slice]  # 最初のやつはハズレ値っぽいから除外
+
+        # [label_ind(li)] を [label_ind/3, label_ind%3]
+
+        # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+
+        axs[0, label_ind].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
+        # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
+        axs[0, label_ind].set_ylim(-1, 1)
+        axs[0, label_ind].axhline(0, linestyle="--", color="gray")
+        axs[0, label_ind].set_title(f"{label} Ratio", fontsize=16)
+        axs[0, label_ind].set_xlabel("log10(s)", fontsize=14)
+        axs[0, label_ind].set_ylabel("rho", fontsize=14)
+        axs[0, label_ind].legend(
+            title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
+            title_fontsize=12,
+        )
+
+        coeff1_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+        coeff2_mean = np.polyfit(np.log10(s[range_slice]), log10F2_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+        coeff12_mean = np.polyfit(np.log10(s[range_slice]), log10F12_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+        fitted1_mean = np.poly1d(coeff1_mean)  # 回帰直線の式
+        fitted2_mean = np.poly1d(coeff2_mean)  # 回帰直線の式
+        fitted12_mean = np.poly1d(coeff12_mean)  # 回帰直線の式
+
+        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="log10(F1)", marker="^", facecolors="none", s=75)
+        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="log10(F2)", marker="s", facecolors="none", s=75)
+        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="log10(|F12|)/2", marker="x", s=75)
+        # axs[1, label_ind].plot(np.log10(s), fitted1_mean(np.log10(s)), color="green", linestyle="--")
+        # axs[1, label_ind].plot(np.log10(s), fitted2_mean(np.log10(s)), color="blue", linestyle="--")
+        axs[1, label_ind].plot(np.log10(s[range_slice]), fitted12_mean(np.log10(s[range_slice])), color="red", linestyle="--")
+        # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
+        # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
+        # axs[1, label_ind].set_ylim(y_min, y_max)
+        axs[1, label_ind].set_title(
+            # f"DMCA{order}\nSlope1 = {coeff1_mean[0]:.3f},  Slope2 = {coeff2_mean[0]:.3f},  Slope12 = {coeff12_mean[0]:.3f}", fontsize=16
+            f"DMCA{order}\nSlope1 = {coeff1_mean[0]:.3f},  Slope2 = {coeff2_mean[0]:.3f},  Slope12 = {coeff12_mean[0]:.3f}",
+            fontsize=16,
+        )
+        axs[1, label_ind].set_xlabel("log10(s)", fontsize=14)
+        axs[1, label_ind].set_ylabel("log10(F(s))", fontsize=14)
+        axs[1, label_ind].legend()
+
+    plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+
+    # グラフの保存と表示
+    if is_savefig:
+        # グラフの保存
+        os.chdir(script_dir)
+        DIR_OUT = "../../../results/Mean/"
+        if not os.path.exists(DIR_OUT):
+            os.makedirs(DIR_OUT)
+        os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+        plt.savefig(
+            f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}" + ".png",
+            dpi=300,
+            bbox_inches="tight",
+        )
+    # グラフの表示
+    plt.show()
+
 
 # %% 脳波ごとに，DMCA(0次，2次，4次)の相関係数の平均値をプロット
 # for label_ind, label in enumerate(labels):
