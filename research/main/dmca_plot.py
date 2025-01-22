@@ -36,7 +36,9 @@ is_plot = False
 # グラフを保存するかどうか
 is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
-sleep_stage = ""
+select_sleep_stage = ""
+# 除外したい睡眠段階
+remove_sleep_stage = ""
 # 16: MeanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
 column_index_of_HRV_measure = 16
 ### OPTIONS ###
@@ -44,7 +46,6 @@ column_index_of_HRV_measure = 16
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
 # 相関係数を格納する4次元配列[ファイル数, ラベル数, 次数, スケール]
 rho_4d_array = np.zeros((len(all_combined_files), 6, 3, 40))  # 40はスケールの数(len(s))
-
 # 相関係数の積分値を格納する3次元配列[ファイル数, ラベル数, 次数]
 rho_integrated = np.zeros((len(all_combined_files), 6, 3))
 
@@ -72,8 +73,10 @@ for file_ind, file_name in enumerate(all_combined_files):
     data = pd.read_csv(file_name, encoding=detected_encoding)
 
     # 睡眠段階でフィルタリング(睡眠段階で切り出さないときは空文字列)
-    if sleep_stage != "":
-        data = data[data.iloc[:, 2] == sleep_stage]  # 3列目が「sleep_stage」の行を抽出
+    if select_sleep_stage != "":
+        data = data[data.iloc[:, 2] == select_sleep_stage]  # 3列目が「sleep_stage」の行を抽出
+    if remove_sleep_stage != "":
+        data = data[data.iloc[:, 2] != remove_sleep_stage]  # 3列目が「sleep_stage」でない行を抽出
 
     # 列名に対応した文字列(csvファイルによって列名の形式が異なるため，こっちで指定)
     labels = [
@@ -102,7 +105,10 @@ for file_ind, file_name in enumerate(all_combined_files):
         # # 睡眠段階を解析する場合
         # x1 = data.iloc[:, 2].values
         # # 置き換え用の辞書を定義
-        # replace_dict = {"W": 0, "R": -1, "N1": -2, "N2": -3, "N3": -4}
+        # # replace_dict = {"W": 0, "R": -1, "N1": -2, "N2": -3, "N3": -4}
+        # # replace_dict = {"W": 0, "R": -1, "N1": -1, "N2": -1, "N3": -1}  # 覚醒から睡眠への移行を見たい場合はこの二値化でOK？
+        # # replace_dict = {"W": 0, "N1": -1, "N2": -2, "N3": -3}  # Rを除外して考える場合
+        # replace_dict = {"W": 0, "N1": -1, "N2": -1, "N3": -1}  # Rを除外して覚醒から睡眠への移行を見たい場合場合
         # # 辞書を使って置き換え
         # x1 = [replace_dict[element] for element in x1]
 
@@ -237,9 +243,6 @@ for file_ind, file_name in enumerate(all_combined_files):
             fitted2 = np.poly1d(coeff2)  # 回帰直線の式
             fitted12 = np.poly1d(coeff12)  # 回帰直線の式
 
-            # 相関係数の積分値を格納
-            rho_integrated[file_ind, label_ind, col_idx - 1] = np.trapz(rho, np.log10(s_clean))
-
             # Slopeを格納
             slopes1[file_ind, label_ind, col_idx - 1] = coeff1[0]
             slopes2[file_ind, label_ind, col_idx - 1] = coeff2[0]
@@ -283,17 +286,23 @@ for file_ind, file_name in enumerate(all_combined_files):
                     os.makedirs(DIR_OUT)
                 os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
                 plt.savefig(
-                    f"DMCA_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}_{label_ind}_{label}" + ".png",
+                    f"DMCA_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_{label_ind}_{label}" + ".png",
                     dpi=300,
                     bbox_inches="tight",
                 )
             # グラフの表示
             plt.show()
 
+        # break  # 睡眠段階で解析するから，ラベルのループは1回でOK
+
 
 # %% rhoのマスクと平均値の計算
 rho_4d_array_masked = rho_4d_array[mask]
 rho_maen = np.mean(rho_4d_array_masked, axis=0)
+rho_mean = np.mean(rho_4d_array_masked, axis=0)
+
+print(f"log10F12_4d_array_masked: {log10F12_4d_array_masked.shape}")
+print(f"log10F12_mean: {log10F12_mean.shape}")
 print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
 print(f"rho_maen.shape: {rho_maen.shape}")
 
@@ -334,18 +343,20 @@ print(f"rho_maen.shape: {rho_maen.shape}")
 # %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
 fig, axs = plt.subplots(2, 3, figsize=(20, 14))
 fig.suptitle(
-    f"Mean XCorr of DMCA4 to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {sleep_stage})' if sleep_stage != '' else ''}",
+    f"Mean XCorr of DMCA4 to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
     fontsize=18,
     y=0.935,
 )
 
-for label_ind, label in enumerate(labels):
+for label_ind, label in enumerate(labels[:5]):
     # 4次の結果(rho_maen[label_ind][2])のみを表示
-    rho_mean_4th = rho_maen[label_ind][2][1 : len(s)]
+    rho_mean_dmca4 = rho_mean[label_ind][0][1 : len(s)]  # 最初のやつはハズレ値っぽいから除外
 
     # [label_ind(li)] を [label_ind/3, label_ind%3]
 
-    axs[label_ind // 3, label_ind % 3].plot(np.log10(s[1:]), rho_mean_4th, color="red")
+    # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+
+    axs[label_ind // 3, label_ind % 3].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
     # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
     axs[label_ind // 3, label_ind % 3].set_ylim(-1, 1)
     axs[label_ind // 3, label_ind % 3].axhline(0, linestyle="--", color="gray")
@@ -353,10 +364,11 @@ for label_ind, label in enumerate(labels):
     axs[label_ind // 3, label_ind % 3].set_xlabel("log10(s)", fontsize=14)
     axs[label_ind // 3, label_ind % 3].set_ylabel("rho", fontsize=14)
     axs[label_ind // 3, label_ind % 3].legend(
-        title=f"Max:  {max(rho_mean_4th):.3f}\nMin:  {min(rho_mean_4th):.3f}",
+        title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
         title_fontsize=12,
     )
-
+# 6つ目のサブプロットを空白に設定
+axs[1, 2].axis("off")  # 軸を非表示
 plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
 # グラフの保存と表示
@@ -368,7 +380,7 @@ if is_savefig:
         os.makedirs(DIR_OUT)
     os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
     plt.savefig(
-        f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{sleep_stage}' if sleep_stage != '' else ''}" + ".png",
+        f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}" + ".png",
         dpi=300,
         bbox_inches="tight",
     )
