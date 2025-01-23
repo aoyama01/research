@@ -100,12 +100,24 @@ for file_name in all_files_RRI:
     time = []
     meanRR = []
     SDRR = []
+    RMSSD = []
+    pNN50 = []
 
     for i in range(n_sub):
         time.append(time_sub.iloc[i + 1])
         sel = RRI_r[(time_r >= time_sub.iloc[i]) & (time_r < time_sub.iloc[i + 1])]
-        meanRR.append(np.nanmean(sel))
-        SDRR.append(np.nanstd(sel))
+        meanRR.append(np.nanmean(sel))  # meanRR
+        SDRR.append(np.nanstd(sel))  # SDRR
+
+        # RMSSDの計算
+        diff_sel = np.diff(sel)  # RR間隔の差分
+        rmssd_value = np.sqrt(np.nanmean(diff_sel**2)) if len(diff_sel) > 0 else np.nan
+        RMSSD.append(rmssd_value)
+
+        # pNN50の計算
+        nn50_count = np.sum(np.abs(diff_sel) > 50) if len(diff_sel) > 0 else 0
+        pnn50_value = (nn50_count / len(diff_sel)) * 100 if len(diff_sel) > 0 else np.nan
+        pNN50.append(pnn50_value)
 
     time = pd.to_datetime(time, utc=True).tz_convert("Asia/Tokyo")
 
@@ -113,6 +125,8 @@ for file_name in all_files_RRI:
     TMP_EEG = TMP_EEG.iloc[1:].copy()
     TMP_EEG["MeanRR"] = meanRR
     TMP_EEG["SDRR"] = SDRR
+    TMP_EEG["RMSSD"] = RMSSD
+    TMP_EEG["pNN50"] = pNN50
 
     # 統合データの書き出し
     os.chdir(script_dir)
