@@ -98,10 +98,12 @@ for file_name in all_files_RRI:
     n_sub = len(time_sub) - 1
 
     time = []
-    meanRR = []
-    SDRR = []
-    RMSSD = []
-    pNN50 = []
+    meanRR = []  # Mean of RR interval
+    SDRR = []  # Standard deviation of RR intervals
+    RMSSD = []  # Root mean square of successive RR interval differences
+    pNN50 = []  # Percentage of successive RR intervals that differ by more than 50 ms
+    HRVI = []  # HRV Triangular Index
+    TINN = []  # Triangular Interpolation of NN intervals
 
     for i in range(n_sub):
         time.append(time_sub.iloc[i + 1])
@@ -119,6 +121,25 @@ for file_name in all_files_RRI:
         pnn50_value = (nn50_count / len(diff_sel)) * 100 if len(diff_sel) > 0 else np.nan
         pNN50.append(pnn50_value)
 
+        # HRVIの計算
+        if len(sel) > 0:
+            hist, bin_edges = np.histogram(sel, bins="auto")  # 自動的にビン数を決定
+            total_area = len(sel)  # ヒストグラムの総サンプル数
+            max_bin_height = max(hist)  # ヒストグラムの最大高さ
+            hrv_tri_index = total_area / max_bin_height if max_bin_height > 0 else np.nan
+            HRVI.append(hrv_tri_index)
+        else:
+            HRVI.append(np.nan)
+
+        # TINNの計算
+        if len(sel) > 0:
+            max_bin_index = np.argmax(hist)  # 最大頻度のビンを特定
+            bin_width = bin_edges[1] - bin_edges[0]  # ビン幅
+            baseline_width = bin_width * len(hist)  # ヒストグラムの基線幅を計算
+            TINN.append(baseline_width)
+        else:
+            TINN.append(np.nan)
+
     time = pd.to_datetime(time, utc=True).tz_convert("Asia/Tokyo")
 
     # 統合データの作成
@@ -127,6 +148,8 @@ for file_name in all_files_RRI:
     TMP_EEG["SDRR"] = SDRR
     TMP_EEG["RMSSD"] = RMSSD
     TMP_EEG["pNN50"] = pNN50
+    TMP_EEG["HRVI"] = HRVI
+    TMP_EEG["TINN"] = TINN
 
     # 統合データの書き出し
     os.chdir(script_dir)
