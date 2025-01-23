@@ -5,6 +5,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 from icecream import ic
+from scipy.signal import welch  # Welch法を使用するためのインポート
 
 ###
 # ic.disable()  # icによるデバッグを無効化
@@ -104,6 +105,13 @@ for file_name in all_files_RRI:
     pNN50 = []  # Percentage of successive RR intervals that differ by more than 50 ms
     HRVI = []  # HRV Triangular Index
     TINN = []  # Triangular Interpolation of NN intervals
+    LF = []
+    HF = []
+    LF_HF_ratio = []
+
+    # スペクトル解析用の周波数範囲
+    LF_range = (0.04, 0.15)  # LF成分の範囲（Hz）
+    HF_range = (0.15, 0.40)  # HF成分の範囲（Hz）
 
     for i in range(n_sub):
         time.append(time_sub.iloc[i + 1])
@@ -140,6 +148,35 @@ for file_name in all_files_RRI:
         else:
             TINN.append(np.nan)
 
+        # LF, HF, LF/HF の計算(LF_rangeおよびHF_range成分に該当する部分の面積を求める)
+        if len(sel) > 0:
+            # RRIデータを等間隔に再サンプリング（必要な場合）
+            fs = f_resamp  # サンプリング周波数（2Hz）
+            interp_time = np.arange(0, len(sel) / fs, 1 / fs)  # 等間隔の時間軸
+            interp_rri = np.interp(interp_time, np.cumsum(sel) / 1000, sel)  # 線形補間
+
+            # Welch法でパワースペクトル密度を計算
+            if len(interp_rri) > 1:  # データが十分にある場合のみ計算
+                nperseg = max(256, len(interp_rri) // 2)  # セグメント長の最小値を設定
+                freqs, psd = welch(interp_rri, fs=fs, nperseg=nperseg)
+
+                # LFとHFの範囲でのパワーを計算
+                lf_power = np.trapz(psd[(freqs >= LF_range[0]) & (freqs < LF_range[1])], freqs[(freqs >= LF_range[0]) & (freqs < LF_range[1])])
+                hf_power = np.trapz(psd[(freqs >= HF_range[0]) & (freqs < HF_range[1])], freqs[(freqs >= HF_range[0]) & (freqs < HF_range[1])])
+
+                # LF/HF比を計算
+                lf_hf_ratio = lf_power / hf_power if hf_power > 0 else np.nan
+            else:
+                lf_power, hf_power, lf_hf_ratio = np.nan, np.nan, np.nan
+
+            LF.append(lf_power)
+            HF.append(hf_power)
+            LF_HF_ratio.append(lf_hf_ratio)
+        else:
+            LF.append(np.nan)
+            HF.append(np.nan)
+            LF_HF_ratio.append(np.nan)
+
     time = pd.to_datetime(time, utc=True).tz_convert("Asia/Tokyo")
 
     # 統合データの作成
@@ -150,6 +187,9 @@ for file_name in all_files_RRI:
     TMP_EEG["pNN50"] = pNN50
     TMP_EEG["HRVI"] = HRVI
     TMP_EEG["TINN"] = TINN
+    TMP_EEG["LF"] = LF
+    TMP_EEG["HF"] = HF
+    TMP_EEG["LF/HF"] = LF_HF_ratio
 
     # 統合データの書き出し
     os.chdir(script_dir)
