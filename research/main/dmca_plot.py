@@ -34,7 +34,7 @@ is_error_check_only = False
 # グラフを出力するかどうか
 is_plot = False
 # グラフを保存するかどうか
-is_savefig = False
+is_savefig = True
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 select_sleep_stage = ""
 # 除外したい睡眠段階
@@ -100,10 +100,15 @@ for file_ind, file_name in enumerate(all_combined_files):
 
         ### エラーチェック(列の取得も) ###
         # 指定した列番号にデータが存在しない場合のチェック
-        if column_index_of_HRV_measure >= data.shape[1]:
-            print(f"列番号 {column_index_of_HRV_measure} が存在しません．このファイルの処理をスキップします．\n")
+        if data.columns[16] != "MeanRR":
+            print(f"列番号 {16} がMeanRRではありません．このファイルの処理をスキップします．\n")
             mask[file_ind] = False
             break  # 次のファイルへ
+
+        # if column_index_of_HRV_measure >= data.shape[1]:
+        #     print(f"列番号 {column_index_of_HRV_measure} が存在しません．このファイルの処理をスキップします．\n")
+        #     mask[file_ind] = False
+        #     break  # 次のファイルへ
 
         # 解析対象となる列を抽出
         x1 = data.iloc[:, 9 + label_ind].values
@@ -339,11 +344,16 @@ print(f"len(s): {len(s)}")
 
 # DMCAの次数(0, 2, 4)
 # order = 2
+fs_title = 40
+fs_label = 30
+fs_ticks = 30
+fs_legend = 30
+
 for order in orders:
     fig, axs = plt.subplots(2, 5, figsize=(30, 14))
     fig.suptitle(
-        f"Mean XCorr of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
-        fontsize=18,
+        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
+        fontsize=fs_title,
         y=0.935,
     )
 
@@ -366,12 +376,17 @@ for order in orders:
         # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
         axs[0, label_ind].set_ylim(-1, 1)
         axs[0, label_ind].axhline(0, linestyle="--", color="gray")
-        axs[0, label_ind].set_title(f"{label} Ratio", fontsize=16)
-        axs[0, label_ind].set_xlabel("log10(s)", fontsize=14)
-        axs[0, label_ind].set_ylabel("rho", fontsize=14)
+        axs[0, label_ind].set_title(f"{label} Ratio", fontsize=fs_title)
+        # axs[0, label_ind].set_xlabel("log10(s)", fontsize=14)
+        if label_ind == 0:
+            axs[0, label_ind].set_ylabel(r"$\rho$", fontsize=fs_label + 10)
+        # y軸ラベルはlabel_indが0の場合のみ表示
+        axs[0, label_ind].tick_params(
+            axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelbottom=False, labelleft=(label_ind == 0)
+        )
         axs[0, label_ind].legend(
             title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
-            title_fontsize=12,
+            title_fontsize=fs_legend,
         )
 
         coeff1_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
@@ -381,23 +396,32 @@ for order in orders:
         fitted2_mean = np.poly1d(coeff2_mean)  # 回帰直線の式
         fitted12_mean = np.poly1d(coeff12_mean)  # 回帰直線の式
 
-        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="log10(F1)", marker="^", facecolors="none", s=75)
-        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="log10(F2)", marker="s", facecolors="none", s=75)
-        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="log10(|F12|)/2", marker="x", s=75)
+        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="$F_1$", marker="^", facecolors="none", s=75)
+        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="$F_2$", marker="s", facecolors="none", s=75)
+        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="$F_{12}$", marker="x", s=75)
         # axs[1, label_ind].plot(np.log10(s), fitted1_mean(np.log10(s)), color="green", linestyle="--")
         # axs[1, label_ind].plot(np.log10(s), fitted2_mean(np.log10(s)), color="blue", linestyle="--")
         axs[1, label_ind].plot(np.log10(s[range_slice]), fitted12_mean(np.log10(s[range_slice])), color="red", linestyle="--")
         # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
         # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
         # axs[1, label_ind].set_ylim(y_min, y_max)
-        axs[1, label_ind].set_title(
-            # f"DMCA{order}\nSlope1 = {coeff1_mean[0]:.3f},  Slope2 = {coeff2_mean[0]:.3f},  Slope12 = {coeff12_mean[0]:.3f}", fontsize=16
-            f"DMCA{order}\nSlope1 = {coeff1_mean[0]:.3f},  Slope2 = {coeff2_mean[0]:.3f},  Slope12 = {coeff12_mean[0]:.3f}",
-            fontsize=16,
+        # axs[1, label_ind].set_title(
+        #     # f"DMCA{order}\nSlope1 = {coeff1_mean[0]:.3f},  Slope2 = {coeff2_mean[0]:.3f},  Slope12 = {coeff12_mean[0]:.3f}",
+        #     f"Slope12 = {coeff12_mean[0]:.3f}",
+        #     fontsize=fs_title,
+        # )
+        axs[1, label_ind].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_title)
+        if label_ind == 0:
+            axs[1, label_ind].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_title)
+        # y軸ラベルはlabel_indが0の場合のみ表示
+        axs[1, label_ind].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelleft=(label_ind == 0))
+        axs[1, label_ind].legend(
+            fontsize=fs_legend,
+            labelspacing=0.3,  # ラベル間の縦のスペースを調整
+            handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
+            handletextpad=0.1,  # 線とテキスト間のスペースを調整
+            borderpad=0.2,  # 凡例全体の内側の余白
         )
-        axs[1, label_ind].set_xlabel("log10(s)", fontsize=14)
-        axs[1, label_ind].set_ylabel("log10(F(s))", fontsize=14)
-        axs[1, label_ind].legend()
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
@@ -408,9 +432,14 @@ for order in orders:
         DIR_OUT = "../../../results/mean/"
         if not os.path.exists(DIR_OUT):
             os.makedirs(DIR_OUT)
-        os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
+        os.chdir(DIR_OUT)
+        # 'LF/HF' はエラーになるから変換
+        measure_name = column_name_of_HRV_measure if column_name_of_HRV_measure != "LF/HF" else "LFHF"
+        # ステージ名の追加（空でない場合）
+        stage_suffix = f"_{select_sleep_stage}" if select_sleep_stage != "" else ""
         plt.savefig(
-            f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}" + ".png",
+            # f"EEG_{column_index_of_HRV_measure}_{f'{column_name_of_HRV_measure}' if column_name_of_HRV_measure != 'LF/HF' else 'LFHF'}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_DMCA{order}"
+            f"EEG_{column_index_of_HRV_measure}_{measure_name}" + stage_suffix + f"_DMCA{order}.png",
             dpi=300,
             bbox_inches="tight",
         )
