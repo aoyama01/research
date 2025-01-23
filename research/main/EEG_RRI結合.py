@@ -197,3 +197,4 @@ for file_name in all_files_RRI:
     TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
 
 # %%
+# それぞれのデータファイルの計測開始時刻，計測終了時刻，計測期間を取得し，全ての平均値を求める処理を記述してもらいたい．
