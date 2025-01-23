@@ -39,8 +39,8 @@ is_savefig = False
 select_sleep_stage = ""
 # 除外したい睡眠段階
 remove_sleep_stage = ""
-# 16: MeanRR, 17: SDNN（, 18: RMSSD, 19: pNN50, 20: LF, 21: HF, 22: LF/HF）
-column_index_of_HRV_measure = 16
+# 16:MeanRR, 17:SDNN, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
+column_index_of_HRV_measure = 24
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -300,7 +300,7 @@ for file_ind, file_name in enumerate(all_combined_files):
             if is_savefig:
                 # グラフの保存
                 os.chdir(script_dir)
-                DIR_OUT = "../../../results/" + file_name.replace("_EEG_RRI.csv", "")
+                DIR_OUT = "../../../results/persons/" + file_name.replace("_EEG_RRI.csv", "")
                 if not os.path.exists(DIR_OUT):
                     os.makedirs(DIR_OUT)
                 os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
@@ -333,7 +333,6 @@ print(f"rho_maen.shape: {rho_mean.shape}")
 
 
 # %% すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
-
 # プロットする範囲をsliceオブジェクトにする
 range_slice = slice(1, len(s))
 print(f"len(s): {len(s)}")
@@ -348,7 +347,7 @@ for order in orders:
         y=0.935,
     )
 
-    for label_ind, label in enumerate(labels[:5]):
+    for label_ind, label in enumerate(labels[:5]):  # Sigmaは除く
         # 4次の結果(rho_mean[label_ind][2])のみを表示
         # order // 2 の処理 → 0 // 2 = 0,  2 // 2 = 1,  4 // 2 = 2
         log10F1_mean_dmca4 = log10F1_mean[label_ind][order // 2][range_slice]
@@ -406,7 +405,7 @@ for order in orders:
     if is_savefig:
         # グラフの保存
         os.chdir(script_dir)
-        DIR_OUT = "../../../results/Mean/"
+        DIR_OUT = "../../../results/mean/"
         if not os.path.exists(DIR_OUT):
             os.makedirs(DIR_OUT)
         os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
@@ -419,86 +418,52 @@ for order in orders:
     plt.show()
 
 
-# %% 脳波ごとに，DMCA(0次，2次，4次)の相関係数の平均値をプロット
-# for label_ind, label in enumerate(labels):
-#     fig, axs = plt.subplots(1, 3, figsize=(20, 8))
-#     fig.suptitle(f"DMCA to {label} Ratio and {column_name_of_HRV_measure}", fontsize=18, y=0.935)
+# %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
+# fig, axs = plt.subplots(2, 3, figsize=(20, 14))
+# fig.suptitle(
+#     f"Mean XCorr of DMCA4 to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
+#     fontsize=18,
+#     y=0.935,
+# )
 
-#     for col_idx, order in enumerate(orders):
-#         axs[col_idx].plot(np.log10(s[1:]), rho_maen[label_ind][col_idx][1 : len(s)], color="red")
-#         # axs[col_idx].set_xlim(0.612110372200782, 2.523022279175993)
-#         axs[col_idx].set_ylim(-1, 1)
-#         axs[col_idx].axhline(0, linestyle="--", color="gray")
-#         axs[col_idx].set_title(f"DMCA{order}\nCross-correlation", fontsize=12)
-#         axs[col_idx].set_xlabel("log10(s)", fontsize=12)
-#         axs[col_idx].set_ylabel("rho", fontsize=12)
-#         axs[col_idx].legend(
-#             title=f"Max:  {max(rho_maen[label_ind][col_idx][1 : len(s)]):.3f}\nMin:  {min(rho_maen[label_ind][col_idx][1 : len(s)]):.3f}",
-#             title_fontsize=10.5,
-#         )
+# for label_ind, label in enumerate(labels[:5]):
+#     # 4次の結果(rho_maen[label_ind][2])のみを表示
+#     rho_mean_dmca4 = rho_mean[label_ind][2][1 : len(s)]  # 最初のやつはハズレ値っぽいから除外
 
-#     plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+#     # [label_ind(li)] を [label_ind/3, label_ind%3]
 
+#     # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+
+#     axs[label_ind // 3, label_ind % 3].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
+#     # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
+#     axs[label_ind // 3, label_ind % 3].set_ylim(-1, 1)
+#     axs[label_ind // 3, label_ind % 3].axhline(0, linestyle="--", color="gray")
+#     axs[label_ind // 3, label_ind % 3].set_title(f"{label} Ratio", fontsize=16)
+#     axs[label_ind // 3, label_ind % 3].set_xlabel("log10(s)", fontsize=14)
+#     axs[label_ind // 3, label_ind % 3].set_ylabel("rho", fontsize=14)
+#     axs[label_ind // 3, label_ind % 3].legend(
+#         title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
+#         title_fontsize=12,
+#     )
+# # 6つ目のサブプロットを空白に設定
+# axs[1, 2].axis("off")  # 軸を非表示
+# plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+
+# # グラフの保存と表示
+# if is_savefig:
 #     # グラフの保存
 #     os.chdir(script_dir)
-#     DIR_OUT = "../../../results/Average/"
+#     DIR_OUT = "../../../results/mean/"
 #     if not os.path.exists(DIR_OUT):
 #         os.makedirs(DIR_OUT)
 #     os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
 #     plt.savefig(
-#         f"DMCA_XCorrMean{f'_{sleep_stage}' if sleep_stage != '' else ''}_{column_name_of_HRV_measure}_{label_ind}_{label}" + ".png",
+#         f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}" + ".png",
 #         dpi=300,
 #         bbox_inches="tight",
 #     )
-#     plt.show()
-
-
-# %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
-fig, axs = plt.subplots(2, 3, figsize=(20, 14))
-fig.suptitle(
-    f"Mean XCorr of DMCA4 to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
-    fontsize=18,
-    y=0.935,
-)
-
-for label_ind, label in enumerate(labels[:5]):
-    # 4次の結果(rho_maen[label_ind][2])のみを表示
-    rho_mean_dmca4 = rho_mean[label_ind][0][1 : len(s)]  # 最初のやつはハズレ値っぽいから除外
-
-    # [label_ind(li)] を [label_ind/3, label_ind%3]
-
-    # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
-
-    axs[label_ind // 3, label_ind % 3].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
-    # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
-    axs[label_ind // 3, label_ind % 3].set_ylim(-1, 1)
-    axs[label_ind // 3, label_ind % 3].axhline(0, linestyle="--", color="gray")
-    axs[label_ind // 3, label_ind % 3].set_title(f"{label} Ratio", fontsize=16)
-    axs[label_ind // 3, label_ind % 3].set_xlabel("log10(s)", fontsize=14)
-    axs[label_ind // 3, label_ind % 3].set_ylabel("rho", fontsize=14)
-    axs[label_ind // 3, label_ind % 3].legend(
-        title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
-        title_fontsize=12,
-    )
-# 6つ目のサブプロットを空白に設定
-axs[1, 2].axis("off")  # 軸を非表示
-plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
-
-# グラフの保存と表示
-if is_savefig:
-    # グラフの保存
-    os.chdir(script_dir)
-    DIR_OUT = "../../../results/Mean/"
-    if not os.path.exists(DIR_OUT):
-        os.makedirs(DIR_OUT)
-    os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
-    plt.savefig(
-        f"Mean_XCorrMean_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}" + ".png",
-        dpi=300,
-        bbox_inches="tight",
-    )
-# グラフの表示
-plt.show()
+# # グラフの表示
+# plt.show()
 
 
 # %%
