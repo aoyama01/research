@@ -5,6 +5,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 from icecream import ic
+from scipy.signal import welch  # Welch法を使用するためのインポート
 
 ###
 # ic.disable()  # icによるデバッグを無効化
@@ -90,7 +91,7 @@ for file_name in all_files_RRI:
     f_resamp = 2
     time1 = min(time_RRI_rev)
     time2 = max(time_RRI_rev)
-    time_r = pd.date_range(time1, time2, freq=f"{1/f_resamp}S")
+    time_r = pd.date_range(time1, time2, freq=f"{1 / f_resamp}S")
     RRI_r = np.interp(time_r.astype(np.int64) / 1e9, time_RRI_rev.astype(np.int64) / 1e9, RRI_rev)
 
     # RRIの平均値とSD
@@ -98,14 +99,83 @@ for file_name in all_files_RRI:
     n_sub = len(time_sub) - 1
 
     time = []
-    meanRR = []
-    SDRR = []
+    meanRR = []  # Mean of RR interval
+    SDRR = []  # Standard deviation of RR intervals
+    RMSSD = []  # Root mean square of successive RR interval differences
+    pNN50 = []  # Percentage of successive RR intervals that differ by more than 50 ms
+    HRVI = []  # HRV Triangular Index
+    TINN = []  # Triangular Interpolation of NN intervals
+    LF = []
+    HF = []
+    LF_HF_ratio = []
+
+    # スペクトル解析用の周波数範囲
+    LF_range = (0.04, 0.15)  # LF成分の範囲（Hz）
+    HF_range = (0.15, 0.40)  # HF成分の範囲（Hz）
 
     for i in range(n_sub):
         time.append(time_sub.iloc[i + 1])
         sel = RRI_r[(time_r >= time_sub.iloc[i]) & (time_r < time_sub.iloc[i + 1])]
-        meanRR.append(np.nanmean(sel))
-        SDRR.append(np.nanstd(sel))
+        meanRR.append(np.nanmean(sel))  # meanRR
+        SDRR.append(np.nanstd(sel))  # SDRR
+
+        # RMSSDの計算
+        diff_sel = np.diff(sel)  # RR間隔の差分
+        rmssd_value = np.sqrt(np.nanmean(diff_sel**2)) if len(diff_sel) > 0 else np.nan
+        RMSSD.append(rmssd_value)
+
+        # pNN50の計算
+        nn50_count = np.sum(np.abs(diff_sel) > 50) if len(diff_sel) > 0 else 0
+        pnn50_value = (nn50_count / len(diff_sel)) * 100 if len(diff_sel) > 0 else np.nan
+        pNN50.append(pnn50_value)
+
+        # HRVIの計算
+        if len(sel) > 0:
+            hist, bin_edges = np.histogram(sel, bins="auto")  # 自動的にビン数を決定
+            total_area = len(sel)  # ヒストグラムの総サンプル数
+            max_bin_height = max(hist)  # ヒストグラムの最大高さ
+            hrv_tri_index = total_area / max_bin_height if max_bin_height > 0 else np.nan
+            HRVI.append(hrv_tri_index)
+        else:
+            HRVI.append(np.nan)
+
+        # TINNの計算
+        if len(sel) > 0:
+            max_bin_index = np.argmax(hist)  # 最大頻度のビンを特定
+            bin_width = bin_edges[1] - bin_edges[0]  # ビン幅
+            baseline_width = bin_width * len(hist)  # ヒストグラムの基線幅を計算
+            TINN.append(baseline_width)
+        else:
+            TINN.append(np.nan)
+
+        # LF, HF, LF/HF の計算(LF_rangeおよびHF_range成分に該当する部分の面積を求める)
+        if len(sel) > 0:
+            # RRIデータを等間隔に再サンプリング（必要な場合）
+            fs = f_resamp  # サンプリング周波数（2Hz）
+            interp_time = np.arange(0, len(sel) / fs, 1 / fs)  # 等間隔の時間軸
+            interp_rri = np.interp(interp_time, np.cumsum(sel) / 1000, sel)  # 線形補間
+
+            # Welch法でパワースペクトル密度を計算
+            if len(interp_rri) > 1:  # データが十分にある場合のみ計算
+                nperseg = max(256, len(interp_rri) // 2)  # セグメント長の最小値を設定
+                freqs, psd = welch(interp_rri, fs=fs, nperseg=nperseg)
+
+                # LFとHFの範囲でのパワーを計算
+                lf_power = np.trapz(psd[(freqs >= LF_range[0]) & (freqs < LF_range[1])], freqs[(freqs >= LF_range[0]) & (freqs < LF_range[1])])
+                hf_power = np.trapz(psd[(freqs >= HF_range[0]) & (freqs < HF_range[1])], freqs[(freqs >= HF_range[0]) & (freqs < HF_range[1])])
+
+                # LF/HF比を計算
+                lf_hf_ratio = lf_power / hf_power if hf_power > 0 else np.nan
+            else:
+                lf_power, hf_power, lf_hf_ratio = np.nan, np.nan, np.nan
+
+            LF.append(lf_power)
+            HF.append(hf_power)
+            LF_HF_ratio.append(lf_hf_ratio)
+        else:
+            LF.append(np.nan)
+            HF.append(np.nan)
+            LF_HF_ratio.append(np.nan)
 
     time = pd.to_datetime(time, utc=True).tz_convert("Asia/Tokyo")
 
@@ -113,11 +183,17 @@ for file_name in all_files_RRI:
     TMP_EEG = TMP_EEG.iloc[1:].copy()
     TMP_EEG["MeanRR"] = meanRR
     TMP_EEG["SDRR"] = SDRR
+    TMP_EEG["RMSSD"] = RMSSD
+    TMP_EEG["pNN50"] = pNN50
+    TMP_EEG["HRVI"] = HRVI
+    TMP_EEG["TINN"] = TINN
+    TMP_EEG["LF"] = LF
+    TMP_EEG["HF"] = HF
+    TMP_EEG["LF/HF"] = LF_HF_ratio
 
     # 統合データの書き出し
     os.chdir(script_dir)
     os.chdir(DIR_OUT)
-    TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
     TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
 
 # %%
