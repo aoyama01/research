@@ -34,13 +34,13 @@ is_error_check_only = False
 # グラフを出力するかどうか
 is_plot = False
 # グラフを保存するかどうか
-is_savefig = True
+is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 select_sleep_stage = ""
 # 除外したい睡眠段階
 remove_sleep_stage = ""
 # 16:MeanRR, 17:SDNN, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 24
+column_index_of_HRV_measure = 16
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -84,7 +84,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         data = data[data.iloc[:, 2] != remove_sleep_stage]  # 3列目が「sleep_stage」でない行を抽出
 
     # 列名に対応した文字列(csvファイルによって列名の形式が異なるため，こっちで指定)
-    labels = [
+    eeg_bands = [
         "Delta",
         "Theta",
         "Alpha",
@@ -93,7 +93,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         "Sigma",
     ]
 
-    for label_ind, label in enumerate(labels):
+    for band_ind, eeg_band in enumerate(eeg_bands):
         # 解析対象となる列を抽出
         # x1 = data.iloc[:, 9 + label_ind].values
         # x2 = data.iloc[:, column_index_of_HRV_measure].values
@@ -111,7 +111,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         #     break  # 次のファイルへ
 
         # 解析対象となる列を抽出
-        x1 = data.iloc[:, 9 + label_ind].values
+        x1 = data.iloc[:, 9 + band_ind].values
         # # 睡眠段階を解析する場合
         # x1 = data.iloc[:, 2].values
         # # 置き換え用の辞書を定義
@@ -125,7 +125,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         x2 = data.iloc[:, column_index_of_HRV_measure].values
 
         # 解析対象の列名を取得
-        column_name_of_brain_wave = f"{label} Ratio"
+        column_name_of_brain_wave = f"{eeg_band} Ratio"
         column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
 
         # x2の欠損値の割合が25%以上の場合のチェック
@@ -234,18 +234,18 @@ for file_ind, file_name in enumerate(all_combined_files):
             # ゆらぎ関数を格納(全ファイルの平均を求めるため)
             log10F1_padded = np.zeros(40)  # 長さ34にゼロ埋め
             log10F1_padded[: len(log10F1)] = log10F1  # rho の値を先頭に埋め込む
-            log10F1_4d_array[file_ind, label_ind, col_idx - 1] = log10F1_padded
+            log10F1_4d_array[file_ind, band_ind, col_idx - 1] = log10F1_padded
             log10F2_padded = np.zeros(40)  # 長さ34にゼロ埋め
             log10F2_padded[: len(log10F2)] = log10F2  # rho の値を先頭に埋め込む
-            log10F2_4d_array[file_ind, label_ind, col_idx - 1] = log10F2_padded
+            log10F2_4d_array[file_ind, band_ind, col_idx - 1] = log10F2_padded
             log10F12_padded = np.zeros(40)  # 長さ34にゼロ埋め
             log10F12_padded[: len(log10F12)] = log10F12  # rho の値を先頭に埋め込む
-            log10F12_4d_array[file_ind, label_ind, col_idx - 1] = log10F12_padded
+            log10F12_4d_array[file_ind, band_ind, col_idx - 1] = log10F12_padded
 
             # 相関係数を格納(全ファイルの平均を求めるため)
             rho_padded = np.zeros(40)  # 長さ34にゼロ埋め
             rho_padded[: len(rho)] = rho  # rho の値を先頭に埋め込む
-            rho_4d_array[file_ind, label_ind, col_idx - 1] = rho_padded
+            rho_4d_array[file_ind, band_ind, col_idx - 1] = rho_padded
 
             # Zスコアをもとに外れ値を除外
             valid_ind = (
@@ -258,7 +258,7 @@ for file_ind, file_name in enumerate(all_combined_files):
             rho = rho[valid_ind]  # rhoも対応するインデックスでフィルタリング
 
             # 相関係数の積分値を格納
-            rho_integrated[file_ind, label_ind, col_idx - 1] = np.trapz(rho, np.log10(s_clean))
+            rho_integrated[file_ind, band_ind, col_idx - 1] = np.trapz(rho, np.log10(s_clean))
 
             coeff1 = np.polyfit(np.log10(s_clean), log10F1, 1)  # 回帰係数(polyfitは傾きと切片を返す)
             coeff2 = np.polyfit(np.log10(s_clean), log10F2, 1)  # 回帰係数(polyfitは傾きと切片を返す)
@@ -268,9 +268,9 @@ for file_ind, file_name in enumerate(all_combined_files):
             fitted12 = np.poly1d(coeff12)  # 回帰直線の式
 
             # Slopeを格納
-            slopes1[file_ind, label_ind, col_idx - 1] = coeff1[0]
-            slopes2[file_ind, label_ind, col_idx - 1] = coeff2[0]
-            slopes12[file_ind, label_ind, col_idx - 1] = coeff12[0]
+            slopes1[file_ind, band_ind, col_idx - 1] = coeff1[0]
+            slopes2[file_ind, band_ind, col_idx - 1] = coeff2[0]
+            slopes12[file_ind, band_ind, col_idx - 1] = coeff12[0]
 
             if is_plot:
                 # 行0, 列col_idxにCross-correlationプロット
@@ -310,7 +310,7 @@ for file_ind, file_name in enumerate(all_combined_files):
                     os.makedirs(DIR_OUT)
                 os.chdir(DIR_OUT)  # 20YYXにディレクトリを移動
                 plt.savefig(
-                    f"DMCA_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_{label_ind}_{label}" + ".png",
+                    f"DMCA_{column_name_of_HRV_measure}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_{band_ind}_{eeg_band}" + ".png",
                     dpi=300,
                     bbox_inches="tight",
                 )
@@ -345,9 +345,18 @@ print(f"len(s): {len(s)}")
 # DMCAの次数(0, 2, 4)
 # order = 2
 fs_title = 40
-fs_label = 30
+fs_label = 40
 fs_ticks = 30
 fs_legend = 30
+
+# labels = [
+#     "Delta",
+#     "Theta",
+#     "Alpha",
+#     "Beta",
+#     "Gamma",
+#     "Sigma",
+# ]
 
 for order in orders:
     fig, axs = plt.subplots(2, 5, figsize=(30, 14))
@@ -357,34 +366,32 @@ for order in orders:
         y=0.935,
     )
 
-    for label_ind, label in enumerate(labels[:5]):  # Sigmaは除く
+    for band_ind, eeg_band in enumerate(eeg_bands[:5]):  # Sigmaは除く
         # 4次の結果(rho_mean[label_ind][2])のみを表示
         # order // 2 の処理 → 0 // 2 = 0,  2 // 2 = 1,  4 // 2 = 2
-        log10F1_mean_dmca4 = log10F1_mean[label_ind][order // 2][range_slice]
-        log10F2_mean_dmca4 = log10F2_mean[label_ind][order // 2][range_slice]
-        log10F12_mean_dmca4 = log10F12_mean[label_ind][order // 2][range_slice]
-        rho_mean_dmca4 = rho_mean[label_ind][order // 2][range_slice]  # 最初のやつはハズレ値っぽいから除外
+        log10F1_mean_dmca4 = log10F1_mean[band_ind][order // 2][range_slice]
+        log10F2_mean_dmca4 = log10F2_mean[band_ind][order // 2][range_slice]
+        log10F12_mean_dmca4 = log10F12_mean[band_ind][order // 2][range_slice]
+        rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # 最初のやつはハズレ値っぽいから除外
 
         # [label_ind(li)] を [label_ind/3, label_ind%3]
 
         # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
 
         # rhoの平均をプロット
-        axs[0, label_ind].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
+        axs[0, band_ind].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
         # rhoの平均の積分時系列をプロットしたい場合
         # axs[0, label_ind].plot(np.log10(s[1:]), np.cumsum(rho_mean_dmca4), color="red", linestyle="None", marker="x", ms=10)
         # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
-        axs[0, label_ind].set_ylim(-1, 1)
-        axs[0, label_ind].axhline(0, linestyle="--", color="gray")
-        axs[0, label_ind].set_title(f"{label} Ratio", fontsize=fs_title)
+        axs[0, band_ind].set_ylim(-1, 1)
+        axs[0, band_ind].axhline(0, linestyle="--", color="gray")
+        axs[0, band_ind].set_title(f"{eeg_band} Ratio", fontsize=fs_title)
         # axs[0, label_ind].set_xlabel("log10(s)", fontsize=14)
-        if label_ind == 0:
-            axs[0, label_ind].set_ylabel(r"$\rho$", fontsize=fs_label + 10)
+        if band_ind == 0:
+            axs[0, band_ind].set_ylabel(r"$\rho$", fontsize=fs_label + 10)
         # y軸ラベルはlabel_indが0の場合のみ表示
-        axs[0, label_ind].tick_params(
-            axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelbottom=False, labelleft=(label_ind == 0)
-        )
-        axs[0, label_ind].legend(
+        axs[0, band_ind].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelbottom=False, labelleft=(band_ind == 0))
+        axs[0, band_ind].legend(
             title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
             title_fontsize=fs_legend,
         )
@@ -396,12 +403,12 @@ for order in orders:
         fitted2_mean = np.poly1d(coeff2_mean)  # 回帰直線の式
         fitted12_mean = np.poly1d(coeff12_mean)  # 回帰直線の式
 
-        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="$F_1$", marker="^", facecolors="none", s=75)
-        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="$F_2$", marker="s", facecolors="none", s=75)
-        axs[1, label_ind].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="$F_{12}$", marker="x", s=75)
+        axs[1, band_ind].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="$F_1$", marker="^", facecolors="none", s=75)
+        axs[1, band_ind].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="$F_2$", marker="s", facecolors="none", s=75)
+        axs[1, band_ind].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="$F_{12}$", marker="x", s=75)
         # axs[1, label_ind].plot(np.log10(s), fitted1_mean(np.log10(s)), color="green", linestyle="--")
         # axs[1, label_ind].plot(np.log10(s), fitted2_mean(np.log10(s)), color="blue", linestyle="--")
-        axs[1, label_ind].plot(np.log10(s[range_slice]), fitted12_mean(np.log10(s[range_slice])), color="red", linestyle="--")
+        axs[1, band_ind].plot(np.log10(s[range_slice]), fitted12_mean(np.log10(s[range_slice])), color="red", linestyle="--")
         # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
         # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
         # axs[1, label_ind].set_ylim(y_min, y_max)
@@ -410,18 +417,22 @@ for order in orders:
         #     f"Slope12 = {coeff12_mean[0]:.3f}",
         #     fontsize=fs_title,
         # )
-        axs[1, label_ind].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_title)
-        if label_ind == 0:
-            axs[1, label_ind].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_title)
+        axs[1, band_ind].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_title)
+        if band_ind == 0:
+            axs[1, band_ind].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_title)
         # y軸ラベルはlabel_indが0の場合のみ表示
-        axs[1, label_ind].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelleft=(label_ind == 0))
-        axs[1, label_ind].legend(
+        axs[1, band_ind].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelleft=(band_ind == 0))
+        axs[1, band_ind].legend(
             fontsize=fs_legend,
             labelspacing=0.3,  # ラベル間の縦のスペースを調整
             handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
             handletextpad=0.1,  # 線とテキスト間のスペースを調整
             borderpad=0.2,  # 凡例全体の内側の余白
         )
+        # 傾きを回帰直線の近くに表示
+        x_comment = 1.4
+        y_comment = coeff12_mean[0] * x_comment + coeff12_mean[1] - 0.35
+        axs[1, band_ind].text(x_comment, y_comment, f"Slope = {coeff12_mean[0]:.3f}", fontsize=30, color="black", va="bottom")
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
@@ -445,6 +456,114 @@ for order in orders:
         )
     # グラフの表示
     plt.show()
+
+
+# %% アブスト用のグラフをプロット
+order = 0  # 次数を指定
+# プロットしたいバンドを指定(Delta:0,Theta:1, Alpha:2, Beta:3, Gamma:4)
+band_inds = [0, 4]
+eeg_bands = ["Delta", "Gamma"]
+
+fs_title = 40
+fs_label = 40
+fs_ticks = 25
+fs_legend = 30
+
+fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
+# fig.suptitle(
+#     f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
+#     fontsize=fs_title,
+#     y=0.935,
+# )
+for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands)):
+    # 4次の結果(rho_mean[label_ind][2])のみを表示
+    # order // 2 の処理 → 0 // 2 = 0,  2 // 2 = 1,  4 // 2 = 2
+    log10F1_mean_dmca4 = log10F1_mean[band_ind][order // 2][range_slice]
+    log10F2_mean_dmca4 = log10F2_mean[band_ind][order // 2][range_slice]
+    log10F12_mean_dmca4 = log10F12_mean[band_ind][order // 2][range_slice]
+    rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # 最初のやつはハズレ値っぽいから除外
+
+    # [label_ind(li)] を [label_ind/3, label_ind%3]
+
+    # supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+
+    # rhoの平均をプロット
+    axs[i * 2].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
+    # rhoの平均の積分時系列をプロットしたい場合
+    # axs[i * 2].plot(np.log10(s[1:]), np.cumsum(rho_mean_dmca4), color="red", linestyle="None", marker="x", ms=10)
+    # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
+    axs[i * 2].set_ylim(-1, 1)
+    axs[i * 2].axhline(0, linestyle="--", color="gray")
+    axs[i * 2].set_title(f"{eeg_band} Ratio", fontsize=fs_title)
+    axs[i * 2].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+    axs[i * 2].set_ylabel(r"$\rho$", fontsize=fs_label)
+    # y軸ラベルはband_indが0の場合のみ表示
+    axs[i * 2].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2)
+    axs[i * 2].legend(
+        title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
+        title_fontsize=fs_legend,
+    )
+
+    coeff1_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+    coeff2_mean = np.polyfit(np.log10(s[range_slice]), log10F2_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+    coeff12_mean = np.polyfit(np.log10(s[range_slice]), log10F12_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
+    fitted1_mean = np.poly1d(coeff1_mean)  # 回帰直線の式
+    fitted2_mean = np.poly1d(coeff2_mean)  # 回帰直線の式
+    fitted12_mean = np.poly1d(coeff12_mean)  # 回帰直線の式
+
+    axs[i * 2 + 1].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="$F_1$", marker="^", facecolors="none", s=75)
+    axs[i * 2 + 1].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="$F_2$", marker="s", facecolors="none", s=75)
+    axs[i * 2 + 1].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="$F_{12}$", marker="x", s=75)
+    # axs[i * 2 + 1].plot(np.log10(s), fitted1_mean(np.log10(s)), color="green", linestyle="--")
+    # axs[i * 2 + 1].plot(np.log10(s), fitted2_mean(np.log10(s)), color="blue", linestyle="--")
+    axs[i * 2 + 1].plot(np.log10(s[range_slice]), fitted12_mean(np.log10(s[range_slice])), color="red", linestyle="--")
+    # y_min = min(log10F1.min(), log10F2.min(), log10F12.min())
+    # y_max = max(log10F1.max(), log10F2.max(), log10F12.max())
+    # axs[i * 2 + 1].set_ylim(y_min, y_max)
+    # axs[i * 2 + 1].set_title(
+    #     # f"DMCA{order}\nSlope1 = {coeff1_mean[0]:.3f},  Slope2 = {coeff2_mean[0]:.3f},  Slope12 = {coeff12_mean[0]:.3f}",
+    #     f"Slope12 = {coeff12_mean[0]:.3f}",
+    #     fontsize=fs_title,
+    # )
+    axs[i * 2 + 1].set_title(f"{eeg_band} Ratio", fontsize=fs_title)
+    axs[i * 2 + 1].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+    axs[i * 2 + 1].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_label)
+    # y軸ラベルはband_indが0の場合のみ表示
+    axs[i * 2 + 1].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2)
+    axs[i * 2 + 1].legend(
+        fontsize=fs_legend,
+        labelspacing=0.3,  # ラベル間の縦のスペースを調整
+        handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
+        handletextpad=0.1,  # 線とテキスト間のスペースを調整
+        borderpad=0.2,  # 凡例全体の内側の余白
+    )
+    # 傾きを回帰直線の近くに表示
+    x_comment = 1.4
+    y_comment = coeff12_mean[0] * x_comment + coeff12_mean[1] - 0.35
+    axs[i * 2 + 1].text(x_comment, y_comment, f"Slope = {coeff12_mean[0]:.3f}", fontsize=30, color="black", va="bottom")
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
+
+# グラフの保存と表示
+if is_savefig:
+    # グラフの保存
+    os.chdir(script_dir)
+    DIR_OUT = "../../../results/mean/"
+    if not os.path.exists(DIR_OUT):
+        os.makedirs(DIR_OUT)
+    os.chdir(DIR_OUT)
+    # 'LF/HF' はエラーになるから変換
+    measure_name = column_name_of_HRV_measure if column_name_of_HRV_measure != "LF/HF" else "LFHF"
+    # ステージ名の追加（空でない場合）
+    stage_suffix = f"_{select_sleep_stage}" if select_sleep_stage != "" else ""
+    plt.savefig(
+        # f"EEG_{column_index_of_HRV_measure}_{f'{column_name_of_HRV_measure}' if column_name_of_HRV_measure != 'LF/HF' else 'LFHF'}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_DMCA{order}"
+        f"EEG_{column_index_of_HRV_measure}_{measure_name}" + stage_suffix + f"_DMCA{order}.png",
+        dpi=300,
+        bbox_inches="tight",
+    )
+# グラフの表示
+plt.show()
 
 
 # %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
@@ -509,7 +628,7 @@ slopes2_masked = slopes2[mask]
 slopes12_masked = slopes12[mask]
 
 # DataFrameに変換する際の行名と列名
-row_names = labels
+row_names = eeg_bands
 col_names = ["DMCA0", "DMCA2", "DMCA4"]
 
 rho_integrated_mean = np.mean(rho_integrated_masked, axis=0)
