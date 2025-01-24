@@ -614,12 +614,6 @@ plt.show()
 # plt.show()
 
 
-# %%
-# x軸の範囲を取得
-# xlim = axs[2].get_xlim()
-# print("x軸の範囲:", xlim)
-
-
 # %% 相関係数の積分値およびSlopeの平均値を表として出力
 # 正常なデータのみを抽出
 rho_integrated_masked = rho_integrated[mask]
@@ -652,4 +646,108 @@ display(slopes2_mean_df.round(3))
 print(f"\nSlope12 (EEG & {column_name_of_HRV_measure}) の平均値")
 display(slopes12_mean_df.round(3))
 
+
+# %% 各ファイルの開始時刻、終了時刻、期間を計算する
+# 異常値が含まれるファイルを除外する
+# all_combined_files を NumPy 配列に変換してからマスクを適用
+all_combined_files_array = np.array(all_combined_files)
+all_combined_files_masked = all_combined_files_array[mask]
+
+# 各ファイルの開始時刻、終了時刻、期間を格納するリストを初期化
+start_times = []
+end_times = []
+periods = []
+
+for file_ind, file_name in enumerate(all_combined_files_masked):
+    # ファイルの読み込み
+    os.chdir(script_dir)
+    os.chdir(DIR_EEG)  # ディレクトリの移動
+    # print(f"{file_name} の読み込み中...")
+
+    with open(file_name, "rb") as file:
+        # ファイルのエンコーディングを検出
+        detected_encoding = detect(file.read())["encoding"]
+    # print(f"検出されたファイルエンコーディング: {detected_encoding}")
+    data = pd.read_csv(file_name, encoding=detected_encoding)
+
+    # `Time` 列が存在するかをチェック
+    if "Time" not in data.columns:
+        print(f"ファイル {file_name} に 'Time' 列が存在しません。スキップします。\n")
+        continue
+
+    # `Time` 列を日時型に変換
+    data["Time"] = pd.to_datetime(data["Time"], errors="coerce")
+
+    # 時刻データの有効な値を取得
+    valid_times = data["Time"].dropna()
+
+    # 開始時刻と終了時刻を取得
+    if len(valid_times) > 0:
+        start_time = valid_times.iloc[0]
+        end_time = valid_times.iloc[-1]
+        duration = end_time - start_time  # 期間を計算
+
+        start_times.append(start_time)
+        end_times.append(end_time)
+        periods.append(duration)
+    else:
+        print(f"ファイル {file_name} の 'Time' 列に有効な時刻データが存在しません。スキップします。\n")
+
+# 平均開始時刻、終了時刻、期間を計算
+if len(periods) > 0:
+    mean_start_time = pd.to_datetime(pd.Series(start_times)).mean().time()
+    mean_end_time = pd.to_datetime(pd.Series(end_times)).mean().time()
+    mean_duration = sum(periods, pd.Timedelta(0)) / len(periods)
+
+    print("平均開始時刻:", mean_start_time)
+    print("平均終了時刻:", mean_end_time)
+    print("平均計測期間:", mean_duration)
+else:
+    print("有効な時刻データが存在しないため、平均値の計算はスキップされました。")
+
 # %%
+start_times
+
+# %%
+end_times
+
+# %%
+periods
+
+# %% 計測機関の平均と標準偏差を求める
+# Timedeltaリストを作成
+periods = [
+    pd.Timedelta("-1 days +07:17:30"),
+    pd.Timedelta("-1 days +09:02:00"),
+    pd.Timedelta("-1 days +09:00:00"),
+    pd.Timedelta("0 days 05:07:30"),
+    pd.Timedelta("0 days 08:45:00"),
+    pd.Timedelta("0 days 08:26:00"),
+    pd.Timedelta("0 days 08:56:30"),
+    pd.Timedelta("-1 days +09:13:00"),
+    pd.Timedelta("-1 days +09:07:30"),
+    pd.Timedelta("-1 days +09:19:30"),
+    pd.Timedelta("-1 days +09:24:00"),
+    pd.Timedelta("-1 days +08:55:30"),
+    pd.Timedelta("-1 days +08:50:30"),
+    pd.Timedelta("0 days 09:18:00"),
+    pd.Timedelta("0 days 09:02:00"),
+]
+
+# 時刻部分を秒単位に変換（1日の秒数を加算して負の値を補正）
+seconds = [(td.total_seconds() + 86400) % 86400 for td in periods]
+
+# 平均を計算
+average_seconds = sum(seconds) / len(seconds)
+# 標準偏差を計算
+std_seconds = pd.Series(seconds).std()
+
+# 平均秒数を時刻に変換
+average_time = pd.to_timedelta(average_seconds, unit="s")
+print(f"計測期間の平均：{average_time}")
+# 08:38:58 → 8.6494 Hour
+
+# 秒を時刻形式に変換
+std_timedelta = pd.Timedelta(seconds=std_seconds)
+print(f"計測期間の標準偏差：{std_timedelta}")
+# 01:05:58.692424814 → 1.0996 Hour
