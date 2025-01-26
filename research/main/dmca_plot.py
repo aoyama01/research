@@ -26,7 +26,15 @@ DIR_EEG = "../../../data/睡眠段階まとめ_copy"  # ディレクトリの指
 all_combined_files = [f for f in os.listdir(DIR_EEG) if f.endswith("_EEG_RRI.csv")]
 ic(all_combined_files)
 
-
+# %% MEMO
+#
+# "W"を除外すると，SDRR，HRVI，TINNでの相関が強くなる．これらはいずれも心拍間隔のばらつき度合いを表す指標
+# LF，LF/HFでの相関も強くなる．
+# だけど，MeanRRでの相関はめちゃ小さくなる．
+#
+# "R"を除外すると，MeanRRでの相関が強くなる
+#
+#
 # %% OPTIONS
 ### OPTIONS ###
 # エラーチェックのみを行うかどうか
