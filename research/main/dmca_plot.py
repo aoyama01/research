@@ -32,7 +32,7 @@ ic(all_combined_files)
 # LF，LF/HFでの相関も強くなる．
 # だけど，MeanRRでの相関はめちゃ小さくなる．
 #
-# "R"を除外すると，MeanRRでの相関が強くなる
+# "R"を除外すると，MeanRRでの相関がちょっと強くなる
 #
 #
 # %% OPTIONS
@@ -46,9 +46,11 @@ is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 select_sleep_stage = ""
 # 除外したい睡眠段階
-remove_sleep_stage = "W"
+remove_sleep_stage = "R"
+# 除外したい睡眠段階その2
+remove_sleep_stage_2 = ""
 # 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 24
+column_index_of_HRV_measure = 16
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -90,6 +92,8 @@ for file_ind, file_name in enumerate(all_combined_files):
         data = data[data.iloc[:, 2] == select_sleep_stage]  # 3列目が「sleep_stage」の行を抽出
     if remove_sleep_stage != "":
         data = data[data.iloc[:, 2] != remove_sleep_stage]  # 3列目が「sleep_stage」でない行を抽出
+    if remove_sleep_stage_2 != "":
+        data = data[data.iloc[:, 2] != remove_sleep_stage_2]  # 3列目が「sleep_stage」でない行を抽出
 
     # 列名に対応した文字列(csvファイルによって列名の形式が異なるため，こっちで指定)
     eeg_bands = [
@@ -375,7 +379,7 @@ labels = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)"]
 for order in orders:
     fig, axs = plt.subplots(2, 5, figsize=(30, 14))
     fig.suptitle(
-        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''} {f'(Stage: {remove_sleep_stage}_removed)' if remove_sleep_stage != '' else ''}",
+        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''} {f'(Stage: {remove_sleep_stage}{remove_sleep_stage_2}_removed)' if remove_sleep_stage != '' else ''}",
         fontsize=fs_title,
         y=0.935,
     )
