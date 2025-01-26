@@ -38,9 +38,9 @@ is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 select_sleep_stage = ""
 # 除外したい睡眠段階
-remove_sleep_stage = ""
-# 16:MeanRR, 17:SDNN, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 16
+remove_sleep_stage = "W"
+# 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
+column_index_of_HRV_measure = 24
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -112,6 +112,9 @@ for file_ind, file_name in enumerate(all_combined_files):
 
         # 解析対象となる列を抽出
         x1 = data.iloc[:, 9 + band_ind].values
+        # # x1に強引にDeltaを入れたい場合
+        # if band_ind == 0:
+        #     break
         # # 睡眠段階を解析する場合
         # x1 = data.iloc[:, 2].values
         # # 置き換え用の辞書を定義
@@ -358,10 +361,13 @@ fs_legend = 30
 #     "Sigma",
 # ]
 
+# ラベルを付ける
+labels = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)"]
+
 for order in orders:
     fig, axs = plt.subplots(2, 5, figsize=(30, 14))
     fig.suptitle(
-        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''}",
+        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''} {f'(Stage: {remove_sleep_stage}_removed)' if remove_sleep_stage != '' else ''}",
         fontsize=fs_title,
         y=0.935,
     )
@@ -391,9 +397,23 @@ for order in orders:
             axs[0, band_ind].set_ylabel(r"$\rho$", fontsize=fs_label + 10)
         # y軸ラベルはlabel_indが0の場合のみ表示
         axs[0, band_ind].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelbottom=False, labelleft=(band_ind == 0))
+
         axs[0, band_ind].legend(
             title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
             title_fontsize=fs_legend,
+        )
+        # サブキャプション
+        axs[0, band_ind].text(
+            0.02,  # x座標
+            0.95,  # y座標
+            # -0.1,
+            # 1.1,
+            labels[band_ind],
+            transform=axs[0, band_ind].transAxes,  # 相対座標に変換
+            fontsize=fs_label,
+            fontweight="bold",
+            va="top",
+            ha="left",
         )
 
         coeff1_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
@@ -422,6 +442,7 @@ for order in orders:
             axs[1, band_ind].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_title)
         # y軸ラベルはlabel_indが0の場合のみ表示
         axs[1, band_ind].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2, labelleft=(band_ind == 0))
+
         axs[1, band_ind].legend(
             fontsize=fs_legend,
             labelspacing=0.3,  # ラベル間の縦のスペースを調整
@@ -429,10 +450,34 @@ for order in orders:
             handletextpad=0.1,  # 線とテキスト間のスペースを調整
             borderpad=0.2,  # 凡例全体の内側の余白
         )
+
+        # サブキャプション
+        axs[1, band_ind].text(
+            0.02,  # x座標
+            0.95,  # y座標
+            # -0.1,
+            # 1.1,
+            labels[band_ind + 5],
+            transform=axs[1, band_ind].transAxes,  # 相対座標に変換
+            fontsize=fs_label,
+            fontweight="bold",
+            va="top",
+            ha="left",
+        )
+
         # 傾きを回帰直線の近くに表示
-        x_comment = 1.4
-        y_comment = coeff12_mean[0] * x_comment + coeff12_mean[1] - 0.35
-        axs[1, band_ind].text(x_comment, y_comment, f"Slope = {coeff12_mean[0]:.3f}", fontsize=30, color="black", va="bottom")
+        # x_comment = 1.05
+        # y_comment = coeff12_mean[0] * x_comment + coeff12_mean[1] - 0.35
+        # axs[1, band_ind].text(x_comment, y_comment, f"Slope = {coeff12_mean[0]:.3f}", fontsize=30, color="black", va="bottom")
+        axs[1, band_ind].text(
+            0.2,
+            0.025,
+            f"Slope: {coeff12_mean[0]:.3f}",
+            transform=axs[1, band_ind].transAxes,  # 相対座標に変換
+            fontsize=30,
+            color="black",
+            va="bottom",
+        )  # 回帰直線との相対的な位置に設定したらグラフごとに微妙なズレが生じる
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
@@ -447,10 +492,11 @@ for order in orders:
         # 'LF/HF' はエラーになるから変換
         measure_name = column_name_of_HRV_measure if column_name_of_HRV_measure != "LF/HF" else "LFHF"
         # ステージ名の追加（空でない場合）
-        stage_suffix = f"_{select_sleep_stage}" if select_sleep_stage != "" else ""
+        selected_stage_suffix = f"_{select_sleep_stage}" if select_sleep_stage != "" else ""
+        removed_stage_suffix = f"_{remove_sleep_stage}" if remove_sleep_stage != "" else ""
         plt.savefig(
             # f"EEG_{column_index_of_HRV_measure}_{f'{column_name_of_HRV_measure}' if column_name_of_HRV_measure != 'LF/HF' else 'LFHF'}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_DMCA{order}"
-            f"EEG_{column_index_of_HRV_measure}_{measure_name}" + stage_suffix + f"_DMCA{order}.png",
+            f"EEG_{column_index_of_HRV_measure}_{measure_name}" + selected_stage_suffix + f"{removed_stage_suffix}_removed" + f"_DMCA{order}.png",
             dpi=300,
             bbox_inches="tight",
         )
@@ -462,12 +508,16 @@ for order in orders:
 order = 0  # 次数を指定
 # プロットしたいバンドを指定(Delta:0,Theta:1, Alpha:2, Beta:3, Gamma:4)
 band_inds = [0, 4]
-eeg_bands = ["Delta", "Gamma"]
+eeg_bands_selected = ["Delta", "Gamma"]
 
 fs_title = 40
 fs_label = 40
 fs_ticks = 25
 fs_legend = 30
+
+labels = ["(a)", "(b)", "(c)", "(d)"]
+
+bands = [r"$\delta$", r"$\gamma$"]
 
 fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
 # fig.suptitle(
@@ -475,7 +525,7 @@ fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
 #     fontsize=fs_title,
 #     y=0.935,
 # )
-for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands)):
+for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands_selected)):
     # 4次の結果(rho_mean[label_ind][2])のみを表示
     # order // 2 の処理 → 0 // 2 = 0,  2 // 2 = 1,  4 // 2 = 2
     log10F1_mean_dmca4 = log10F1_mean[band_ind][order // 2][range_slice]
@@ -494,7 +544,7 @@ for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands)):
     # axs[label_ind//3, label_ind%3].set_xlim(0.612110372200782, 2.523022279175993)
     axs[i * 2].set_ylim(-1, 1)
     axs[i * 2].axhline(0, linestyle="--", color="gray")
-    axs[i * 2].set_title(f"{eeg_band} Ratio", fontsize=fs_title)
+    axs[i * 2].set_title(f"{bands[i]} ratio vs. {column_name_of_HRV_measure}", fontsize=fs_title)
     axs[i * 2].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
     axs[i * 2].set_ylabel(r"$\rho$", fontsize=fs_label)
     # y軸ラベルはband_indが0の場合のみ表示
@@ -502,6 +552,19 @@ for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands)):
     axs[i * 2].legend(
         title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
         title_fontsize=fs_legend,
+    )
+    # サブキャプション
+    axs[i * 2].text(
+        0.02,  # x座標
+        0.95,  # y座標
+        # -0.1,
+        # 1.1,
+        labels[i * 2],
+        transform=axs[i * 2].transAxes,  # 相対座標に変換
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
     )
 
     coeff1_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_dmca4, 1)  # 回帰係数(polyfitは傾きと切片を返す)
@@ -525,7 +588,7 @@ for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands)):
     #     f"Slope12 = {coeff12_mean[0]:.3f}",
     #     fontsize=fs_title,
     # )
-    axs[i * 2 + 1].set_title(f"{eeg_band} Ratio", fontsize=fs_title)
+    axs[i * 2 + 1].set_title(f"{bands[i]} ratio vs. {column_name_of_HRV_measure}", fontsize=fs_title)
     axs[i * 2 + 1].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
     axs[i * 2 + 1].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_label)
     # y軸ラベルはband_indが0の場合のみ表示
@@ -537,32 +600,175 @@ for i, (band_ind, eeg_band) in enumerate(zip(band_inds, eeg_bands)):
         handletextpad=0.1,  # 線とテキスト間のスペースを調整
         borderpad=0.2,  # 凡例全体の内側の余白
     )
+    # サブキャプション
+    axs[i * 2 + 1].text(
+        0.02,  # x座標
+        0.95,  # y座標
+        # -0.1,
+        # 1.1,
+        labels[i * 2 + 1],
+        transform=axs[i * 2 + 1].transAxes,  # 相対座標に変換
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
+    )
     # 傾きを回帰直線の近くに表示
-    x_comment = 1.4
-    y_comment = coeff12_mean[0] * x_comment + coeff12_mean[1] - 0.35
-    axs[i * 2 + 1].text(x_comment, y_comment, f"Slope = {coeff12_mean[0]:.3f}", fontsize=30, color="black", va="bottom")
+    # x_comment = 1.4
+    # y_comment = coeff12_mean[0] * x_comment + coeff12_mean[1] - 0.35
+    # axs[i * 2 + 1].text(x_comment, y_comment, f"Slope = {coeff12_mean[0]:.3f}", fontsize=30, color="black", va="bottom")
+    axs[i * 2 + 1].text(
+        0.2,
+        0.025,
+        f"Slope: {coeff12_mean[0]:.3f}",
+        transform=axs[i * 2 + 1].transAxes,  # 相対座標に変換
+        fontsize=30,
+        color="black",
+        va="bottom",
+    )  # 回帰直線との相対的な位置に設定したらグラフごとに微妙なズレが生じる
 
 plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないようにレイアウト調整
 
 # グラフの保存と表示
-if is_savefig:
-    # グラフの保存
-    os.chdir(script_dir)
-    DIR_OUT = "../../../results/mean/"
-    if not os.path.exists(DIR_OUT):
-        os.makedirs(DIR_OUT)
-    os.chdir(DIR_OUT)
-    # 'LF/HF' はエラーになるから変換
-    measure_name = column_name_of_HRV_measure if column_name_of_HRV_measure != "LF/HF" else "LFHF"
-    # ステージ名の追加（空でない場合）
-    stage_suffix = f"_{select_sleep_stage}" if select_sleep_stage != "" else ""
-    plt.savefig(
-        # f"EEG_{column_index_of_HRV_measure}_{f'{column_name_of_HRV_measure}' if column_name_of_HRV_measure != 'LF/HF' else 'LFHF'}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_DMCA{order}"
-        f"EEG_{column_index_of_HRV_measure}_{measure_name}" + stage_suffix + f"_DMCA{order}.png",
-        dpi=300,
-        bbox_inches="tight",
-    )
+# if is_savefig:
+#     # グラフの保存
+#     os.chdir(script_dir)
+#     DIR_OUT = "../../../results/mean/"
+#     if not os.path.exists(DIR_OUT):
+#         os.makedirs(DIR_OUT)
+#     os.chdir(DIR_OUT)
+#     # 'LF/HF' はエラーになるから変換
+#     measure_name = column_name_of_HRV_measure if column_name_of_HRV_measure != "LF/HF" else "LFHF"
+#     # ステージ名の追加（空でない場合）
+#     stage_suffix = f"_{select_sleep_stage}" if select_sleep_stage != "" else ""
+#     plt.savefig(
+#         # f"EEG_{column_index_of_HRV_measure}_{f'{column_name_of_HRV_measure}' if column_name_of_HRV_measure != 'LF/HF' else 'LFHF'}{f'_{select_sleep_stage}' if select_sleep_stage != '' else ''}_DMCA{order}"
+#         f"EEG_{column_index_of_HRV_measure}_{measure_name}" + stage_suffix + f"_DMCA{order}.png",
+#         dpi=300,
+#         bbox_inches="tight",
+#     )
 # グラフの表示
+plt.show()
+
+
+# %% アブスト用のグラフその2(生データとデルタ波の解析結果)
+# 任意のプロット用関数（例: ユーザーが提供する関数をここで受け取る）
+def custom_plot_func(ax, plot_index):
+    if plot_index == 0:
+        # x = np.linspace(0, 10, 100)
+        # y = np.sin(x)
+        # ax.plot(x, y, label="Sine Wave", color="blue")
+        # 脳波の生データをプロット
+        ax.plot(range(n), x1, color="green")
+        ax.set_title(r"$\delta$ ratio", fontsize=fs_title)
+        ax.set_xlabel("i", fontsize=fs_label)
+        ax.set_ylabel(r"$\delta$ ratio", fontsize=fs_label)
+
+    elif plot_index == 1:
+        # x = np.linspace(0, 10, 100)
+        # y = np.cos(x)
+        # ax.plot(x, y, label="Cosine Wave", color="green")
+        # 心拍の生データをプロット
+        ax.plot(range(n), x2, color="blue")
+        ax.set_title(column_name_of_HRV_measure, fontsize=fs_title)
+        ax.set_xlabel("i", fontsize=fs_label)
+        ax.set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
+    # ax.set_title(f"Custom Plot {plot_index+1}", fontsize=fs_title)
+    # ax.legend(fontsize=fs_legend)
+    # ax.set_xlabel("X-axis", fontsize=fs_label)
+    # ax.set_ylabel("Y-axis", fontsize=fs_label)
+    ax.tick_params(axis="both", which="both", labelsize=fs_ticks)
+
+
+# グラフの作成
+fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
+
+# 左から1番目と2番目に任意のグラフをプロット
+for i in range(2):
+    custom_plot_func(axs[i], i)
+    axs[i].text(
+        0.02,
+        0.95,
+        labels[i],
+        transform=axs[i].transAxes,
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
+    )
+
+bands = [r"$\delta$", r"$\gamma$"]
+
+# 元のコードのグラフを左から3番目と4番目に移動([:1]でDelta波だけに限定)
+for i, (band_ind, eeg_band) in enumerate(zip(band_inds[:1], eeg_bands_selected[:1])):
+    log10F1_mean_dmca4 = log10F1_mean[band_ind][order // 2][range_slice]
+    log10F2_mean_dmca4 = log10F2_mean[band_ind][order // 2][range_slice]
+    log10F12_mean_dmca4 = log10F12_mean[band_ind][order // 2][range_slice]
+    rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]
+
+    # 移動したインデックスを調整
+    axs[2 + i * 2].plot(np.log10(s[1:]), rho_mean_dmca4, color="red", linestyle="None", marker="x", ms=10)
+    axs[2 + i * 2].set_ylim(-1, 1)
+    axs[2 + i * 2].axhline(0, linestyle="--", color="gray")
+    axs[2 + i * 2].set_title(f"{bands[band_ind]} ratio vs. {column_name_of_HRV_measure}", fontsize=fs_title)
+    axs[2 + i * 2].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+    axs[2 + i * 2].set_ylabel(r"$\rho$", fontsize=fs_label)
+    axs[2 + i * 2].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2)
+    axs[2 + i * 2].legend(
+        title=f"Max:  {max(rho_mean_dmca4):.3f}\nMin:  {min(rho_mean_dmca4):.3f}",
+        title_fontsize=fs_legend,
+    )
+    axs[2 + i * 2].text(
+        0.02,
+        0.95,
+        labels[2 + i * 2],
+        transform=axs[2 + i * 2].transAxes,
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
+    )
+
+    coeff12_mean = np.polyfit(np.log10(s[range_slice]), log10F12_mean_dmca4, 1)
+    fitted12_mean = np.poly1d(coeff12_mean)
+
+    axs[2 + i * 2 + 1].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, color="green", label="$F_1$", marker="^", facecolors="none", s=75)
+    axs[2 + i * 2 + 1].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, color="blue", label="$F_2$", marker="s", facecolors="none", s=75)
+    axs[2 + i * 2 + 1].scatter(np.log10(s[range_slice]), log10F12_mean_dmca4, color="red", label="$F_{12}$", marker="x", s=75)
+    axs[2 + i * 2 + 1].plot(np.log10(s[range_slice]), fitted12_mean(np.log10(s[range_slice])), color="red", linestyle="--")
+    axs[2 + i * 2 + 1].set_title(f"{bands[band_ind]} ratio vs. {column_name_of_HRV_measure}", fontsize=fs_title)
+    axs[2 + i * 2 + 1].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+    axs[2 + i * 2 + 1].set_ylabel(r"$\log_{10}F_{12}(s)$", fontsize=fs_label)
+    axs[2 + i * 2 + 1].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2)
+    axs[2 + i * 2 + 1].legend(fontsize=fs_legend)
+    axs[2 + i * 2 + 1].text(
+        0.02,
+        0.95,
+        labels[2 + i * 2 + 1],
+        transform=axs[2 + i * 2 + 1].transAxes,
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
+    )
+    axs[2 + i * 2 + 1].legend(
+        fontsize=fs_legend,
+        labelspacing=0.3,  # ラベル間の縦のスペースを調整
+        handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
+        handletextpad=0.1,  # 線とテキスト間のスペースを調整
+        borderpad=0.2,  # 凡例全体の内側の余白
+    )
+    axs[2 + i * 2 + 1].text(
+        0.2,
+        0.025,
+        f"Slope: {coeff12_mean[0]:.3f}",
+        transform=axs[2 + i * 2 + 1].transAxes,  # 相対座標に変換
+        fontsize=30,
+        color="black",
+        va="bottom",
+    )  # 回帰直線との相対的な位置に設定したらグラフごとに微妙なズレが生じる
+
+plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
 
