@@ -50,7 +50,7 @@ remove_sleep_stage = ""
 # 除外したい睡眠段階その2
 remove_sleep_stage_2 = ""
 # 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 17
+column_index_of_HRV_measure = 16
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -977,7 +977,7 @@ fs_label = 40
 fs_ticks = 25
 fs_legend = 30
 
-fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
+fig, axs = plt.subplots(1, 2, figsize=(15, 7))
 
 # プロットする範囲をsliceオブジェクトにする
 range_slice = slice(1, len(s))
@@ -1006,7 +1006,8 @@ for band_ind, eeg_band in enumerate(eeg_bands[:5]):
     )
 
 # グラフの装飾
-axs[0].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
+# タイトルはなくて良い
+# axs[0].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
 axs[0].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
 axs[0].set_ylabel(r"$\rho$", fontsize=fs_label)
 axs[0].set_ylim(-1, 1)
@@ -1016,7 +1017,7 @@ axs[0].tick_params(axis="both", which="both", labelsize=fs_ticks)
 axs[0].text(
     0.02,
     0.95,
-    labels[2],
+    labels[0],
     transform=axs[0].transAxes,
     fontsize=fs_label,
     fontweight="bold",
@@ -1034,29 +1035,31 @@ axs[1].plot(np.log10(s[8:20]), fitted1_mean(np.log10(s[8:20])) - 0.2, color="gre
 # fitted2_mean_modified = np.poly1d([fitted2_mean[1], fitted2_mean[0]])
 axs[1].plot(np.log10(s[8:20]), fitted2_mean(np.log10(s[8:20])) + 0.1, color="blue", linestyle=(0, (5, 3)), lw=3)
 
-axs[1].set_title(f"EEG and {column_name_of_HRV_measure}", fontsize=fs_title)  # タイトルを空白に設定
-axs[1].set_title("    and           ", fontsize=fs_title)  # タイトルを空白に設定
-axs[1].text(
-    0.145,
-    1,
-    "EEG",
-    transform=axs[1].transAxes,  # 相対座標に変換
-    fontsize=fs_title,
-    color="green",
-    va="bottom",
-)
-axs[1].text(
-    0.515,
-    1,
-    f"{column_name_of_HRV_measure}",
-    transform=axs[1].transAxes,  # 相対座標に変換
-    fontsize=fs_title,
-    color="blue",
-    va="bottom",
-)
+axs[1].set_ylim(-0.95, 0.95)
+# タイトルはなくて良い
+# axs[1].set_title(f"EEG and {column_name_of_HRV_measure}", fontsize=fs_title)  # タイトルを空白に設定
+# axs[1].set_title("    and           ", fontsize=fs_title)  # タイトルを空白に設定
+# axs[1].text(
+#     0.145,
+#     1,
+#     "EEG",
+#     transform=axs[1].transAxes,  # 相対座標に変換
+#     fontsize=fs_title,
+#     color="green",
+#     va="bottom",
+# )
+# axs[1].text(
+#     0.515,
+#     1,
+#     f"{column_name_of_HRV_measure}",
+#     transform=axs[1].transAxes,  # 相対座標に変換
+#     fontsize=fs_title,
+#     color="blue",
+#     va="bottom",
+# )
 
-axs[1].set_xlabel(r"$\log_{10}s$", fontsize=fs_label)
-axs[1].set_ylabel(r"$\log_{10}F$", fontsize=fs_label)
+axs[1].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+axs[1].set_ylabel(r"$\log_{10}F(s)$", fontsize=fs_label)
 axs[1].legend(fontsize=fs_label)
 axs[1].tick_params(axis="both", which="both", labelsize=fs_ticks)
 axs[1].legend(
@@ -1069,7 +1072,7 @@ axs[1].legend(
 axs[1].text(
     0.02,
     0.95,
-    labels[3],
+    labels[1],
     transform=axs[1].transAxes,
     fontsize=fs_label,
     fontweight="bold",
@@ -1099,8 +1102,8 @@ axs[1].text(
     rotation_mode="anchor",
 )
 axs[1].text(
-    0.3,
-    0.5,
+    0.35,
+    0.4,
     rf"{coeff2_mean[0]:.3f}",
     transform=axs[1].transAxes,  # 相対座標に変換
     fontsize=25,
