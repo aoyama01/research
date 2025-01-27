@@ -351,7 +351,7 @@ print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
 print(f"rho_maen.shape: {rho_mean.shape}")
 
 
-# %% すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
+# %% 【実行する】すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
 # プロットする範囲をsliceオブジェクトにする
 range_slice = slice(1, len(s))
 print(f"len(s): {len(s)}")
@@ -515,8 +515,8 @@ for order in orders:
     plt.show()
 
 
-# %% アブスト用のグラフその1(DeltaとGammaの0次DMCA)
-order = 0  # 次数を指定
+# %% 【実行する】アブスト用のグラフその1(DeltaとGammaの0次DMCA)
+order = 4  # 次数を指定
 # プロットしたいバンドを指定(Delta:0,Theta:1, Alpha:2, Beta:3, Gamma:4)
 band_inds = [0, 4]
 eeg_bands_selected = ["Delta", "Gamma"]
@@ -662,8 +662,8 @@ plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないように�
 plt.show()
 
 
-# %% アブスト用のグラフその2(生データとデルタ波の解析結果)
-order = 0  # 次数を指定
+# %% 【一応実行する】アブスト用のグラフその2(生データとデルタ波の解析結果)
+order = 4  # 次数を指定
 
 
 # 任意のプロット用関数（例: ユーザーが提供する関数をここで受け取る）
@@ -990,10 +990,20 @@ print(f"len(s): {len(s)}")
 bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
 
 # 1つ目のグラフ：0行0～4列を統合
-colors = ["red", "blue", "green", "orange", "purple"]
+# プロット用のcolorとlinestyleをリストで定義
+colors = ["red", "blue", "green", "#CC5500", "purple"]
+linestyles = ["-", "--", "-.", ":", (0, (5, 3))]  # 必要に応じて増やす
 for band_ind, eeg_band in enumerate(eeg_bands[:5]):
     rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # データ取得
-    axs[0].plot(np.log10(s[range_slice]), rho_mean_dmca4, label=f"{bands[band_ind]} Ratio", color=colors[band_ind])
+    # 各プロットに異なるlinestyleを指定
+    axs[0].plot(
+        np.log10(s[range_slice]),
+        rho_mean_dmca4,
+        label=f"{bands[band_ind]} Ratio",
+        color=colors[band_ind],
+        linestyle=linestyles[band_ind % len(linestyles)],  # リストの範囲を超えないように
+        lw=2.5,
+    )
 
 # グラフの装飾
 axs[0].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
@@ -1006,7 +1016,7 @@ axs[0].tick_params(axis="both", which="both", labelsize=fs_ticks)
 axs[0].text(
     0.02,
     0.95,
-    labels[0],
+    labels[2],
     transform=axs[0].transAxes,
     fontsize=fs_label,
     fontweight="bold",
@@ -1018,11 +1028,11 @@ axs[0].text(
 axs[1].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, label=r"$F_1$", color="green", marker="^", facecolors="none", s=75)
 axs[1].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, label=r"$F_2$", color="blue", marker="s", facecolors="none", s=75)
 # 新しい直線の式を生成
-coeff1_mean_modified = [coeff1_mean[0], coeff1_mean[1]]
-fitted1_mean_modified = np.poly1d(coeff1_mean_modified)
-axs[1].plot(np.log10(s[8:20]), fitted1_mean_modified(np.log10(s[8:20])) - 0.07, color="green", linestyle=(0, (5, 3)), lw=3)
-fitted2_mean_modified = np.poly1d([fitted2_mean[1], fitted2_mean[0] + 0.1])
-axs[1].plot(np.log10(s[8:20]), fitted2_mean_modified(np.log10(s[8:20])), color="blue", linestyle=(0, (5, 3)), lw=3)
+# coeff1_mean_modified = [coeff1_mean[0], coeff1_mean[1]]
+# fitted1_mean_modified = np.poly1d(coeff1_mean_modified)
+axs[1].plot(np.log10(s[8:20]), fitted1_mean(np.log10(s[8:20])) - 0.2, color="green", linestyle=(0, (5, 3)), lw=3)
+# fitted2_mean_modified = np.poly1d([fitted2_mean[1], fitted2_mean[0]])
+axs[1].plot(np.log10(s[8:20]), fitted2_mean(np.log10(s[8:20])) + 0.1, color="blue", linestyle=(0, (5, 3)), lw=3)
 
 axs[1].set_title(f"EEG and {column_name_of_HRV_measure}", fontsize=fs_title)  # タイトルを空白に設定
 axs[1].set_title("    and           ", fontsize=fs_title)  # タイトルを空白に設定
@@ -1059,7 +1069,7 @@ axs[1].legend(
 axs[1].text(
     0.02,
     0.95,
-    labels[1],
+    labels[3],
     transform=axs[1].transAxes,
     fontsize=fs_label,
     fontweight="bold",
@@ -1078,25 +1088,25 @@ band_slope = np.array(band_slope)
 band_slope_mean = np.mean(band_slope)
 band_slope_std = np.std(band_slope)
 axs[1].text(
-    0.4,
-    0.25,
+    0.37,
+    0.15,
     rf"{band_slope_mean:.3f}$\pm${band_slope_std:.3f}",
     transform=axs[1].transAxes,  # 相対座標に変換
     fontsize=25,
     color="green",
     va="bottom",
-    rotation=np.degrees(np.arctan(coeff1_mean[0]) + 0.1),
+    rotation=np.degrees(np.arctan(fitted1_mean[1])),
     rotation_mode="anchor",
 )
 axs[1].text(
-    0.35,
-    0.525,
+    0.3,
+    0.5,
     rf"{coeff2_mean[0]:.3f}",
     transform=axs[1].transAxes,  # 相対座標に変換
     fontsize=25,
     color="blue",
     va="bottom",
-    rotation=np.degrees(np.arctan(fitted2_mean_modified[1]) + 0.1),
+    rotation=np.degrees(np.arctan(fitted2_mean[1])),
     rotation_mode="anchor",
 )
 
