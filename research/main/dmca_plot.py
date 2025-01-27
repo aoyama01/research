@@ -46,11 +46,11 @@ is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 select_sleep_stage = ""
 # 除外したい睡眠段階
-remove_sleep_stage = "R"
+remove_sleep_stage = ""
 # 除外したい睡眠段階その2
 remove_sleep_stage_2 = ""
 # 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 16
+column_index_of_HRV_measure = 17
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -125,8 +125,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         # 解析対象となる列を抽出
         x1 = data.iloc[:, 9 + band_ind].values
         # # x1に強引にDeltaを入れたい場合
-        # if band_ind == 0:
-        #     break
+        # break
         # # 睡眠段階を解析する場合
         # x1 = data.iloc[:, 2].values
         # # 置き換え用の辞書を定義
@@ -516,7 +515,7 @@ for order in orders:
     plt.show()
 
 
-# %% アブスト用のグラフをプロット
+# %% アブスト用のグラフその1(DeltaとGammaの0次DMCA)
 order = 0  # 次数を指定
 # プロットしたいバンドを指定(Delta:0,Theta:1, Alpha:2, Beta:3, Gamma:4)
 band_inds = [0, 4]
@@ -664,6 +663,9 @@ plt.show()
 
 
 # %% アブスト用のグラフその2(生データとデルタ波の解析結果)
+order = 0  # 次数を指定
+
+
 # 任意のプロット用関数（例: ユーザーが提供する関数をここで受け取る）
 def custom_plot_func(ax, plot_index):
     if plot_index == 0:
@@ -783,6 +785,360 @@ for i, (band_ind, eeg_band) in enumerate(zip(band_inds[:1], eeg_bands_selected[:
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
+
+# %% アブスト用のグラフその3(生データとバンドの平均SlopeとXCorr)
+order = 4  # 次数を指定
+
+fs_title = 35
+fs_label = 40
+fs_ticks = 25
+fs_legend = 30
+
+# x1 = data.iloc[:, 9 + 0].values
+# n = len(x1)
+# x2 = data.iloc[:, column_index_of_HRV_measure].values
+
+
+# 任意のプロット用関数（例: ユーザーが提供する関数をここで受け取る）
+# def custom_plot_func(ax, plot_index):
+#     if plot_index == 0:
+#         # x = np.linspace(0, 10, 100)
+#         # y = np.sin(x)
+#         # ax.plot(x, y, label="Sine Wave", color="blue")
+#         # 脳波の生データをプロット
+#         # x1 = data.iloc[:, 9 + 0].values
+#         ax.plot(range(n), x1, color="green")
+#         ax.set_title(r"$\delta$ ratio", fontsize=fs_title)
+#         ax.set_xlabel("i", fontsize=fs_label)
+#         ax.set_ylabel(r"$\delta$ ratio", fontsize=fs_label)
+
+#     elif plot_index == 1:
+#         # x = np.linspace(0, 10, 100)
+#         # y = np.cos(x)
+#         # ax.plot(x, y, label="Cosine Wave", color="green")
+#         # 心拍の生データをプロット
+#         ax.plot(range(n), x2, color="blue")
+#         ax.set_title(column_name_of_HRV_measure, fontsize=fs_title)
+#         ax.set_xlabel("i", fontsize=fs_label)
+#         ax.set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
+#     # ax.set_title(f"Custom Plot {plot_index+1}", fontsize=fs_title)
+#     # ax.legend(fontsize=fs_legend)
+#     # ax.set_xlabel("X-axis", fontsize=fs_label)
+#     # ax.set_ylabel("Y-axis", fontsize=fs_label)
+#     ax.tick_params(axis="both", which="both", labelsize=fs_ticks)
+
+
+# # グラフの作成
+# fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
+
+# # 左から1番目と2番目に任意のグラフをプロット
+# for i in range(2):
+#     custom_plot_func(axs[i], i)
+#     axs[i].text(
+#         0.02,
+#         0.95,
+#         labels[i],
+#         transform=axs[i].transAxes,
+#         fontsize=fs_label,
+#         fontweight="bold",
+#         va="top",
+#         ha="left",
+#     )
+
+fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
+
+# 脳波の生データをプロット
+axs[0].plot(range(n), x1, color="green")
+axs[0].set_title(r"$\delta$ ratio", fontsize=fs_title)
+axs[0].set_xlabel("i", fontsize=fs_label)
+axs[0].set_ylabel(r"$\delta$ ratio", fontsize=fs_label)
+axs[0].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[0].text(
+    0.02,
+    0.95,
+    labels[0],
+    transform=axs[0].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+
+# 心拍の生データをプロット
+axs[1].plot(range(n), x2, color="blue")
+axs[1].set_title(column_name_of_HRV_measure, fontsize=fs_title)
+axs[1].set_xlabel("i", fontsize=fs_label)
+axs[1].set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
+axs[1].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[1].text(
+    0.02,
+    0.95,
+    labels[1],
+    transform=axs[1].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+
+
+# プロットする範囲をsliceオブジェクトにする
+range_slice = slice(1, len(s))
+print(f"len(s): {len(s)}")
+
+# プロット設定
+# fig, axs = plt.subplots(1, 2, figsize=(18, 8))  # 横並びで2つのプロット
+# fig.suptitle("Combined Plots for EEG Bands and F Functions", fontsize=20)
+
+bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
+
+# 1つ目のグラフ：0行0～4列を統合
+colors = ["red", "blue", "green", "orange", "purple"]
+for band_ind, eeg_band in enumerate(eeg_bands[:5]):
+    rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # データ取得
+    axs[3].plot(np.log10(s[range_slice]), rho_mean_dmca4, label=f"{bands[band_ind]} Ratio", color=colors[band_ind])
+
+# グラフの装飾
+axs[3].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
+axs[3].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+axs[3].set_ylabel(r"$\rho$", fontsize=fs_label)
+axs[3].set_ylim(-1, 1)
+axs[3].axhline(0, linestyle="--", color="gray")
+axs[3].legend(fontsize=20, loc="lower left")
+axs[3].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[3].text(
+    0.02,
+    0.95,
+    labels[3],
+    transform=axs[3].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+
+# 2つ目のグラフ：log10F1_mean_dmca4 と log10F2_mean_dmca4 を色分けしてプロット
+axs[2].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, label=r"$F_1$", color="green", marker="^", facecolors="none", s=75)
+axs[2].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, label=r"$F_2$", color="blue", marker="s", facecolors="none", s=75)
+axs[2].plot(np.log10(s[range_slice]), fitted1_mean(np.log10(s[range_slice])), color="green", linestyle="--")
+axs[2].plot(np.log10(s[range_slice]), fitted2_mean(np.log10(s[range_slice])), color="blue", linestyle="--")
+
+# グラフの装飾
+axs[2].set_title(f"$\delta$ ratio & {column_name_of_HRV_measure}", fontsize=fs_title)
+axs[2].set_xlabel(r"$\log_{10}s$", fontsize=fs_label)
+axs[2].set_ylabel(r"$\log_{10}F$", fontsize=fs_label)
+axs[2].legend(fontsize=fs_label)
+axs[2].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[2].legend(
+    fontsize=fs_legend,
+    labelspacing=0.3,  # ラベル間の縦のスペースを調整
+    handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
+    handletextpad=0.1,  # 線とテキスト間のスペースを調整
+    borderpad=0.2,  # 凡例全体の内側の余白
+)
+axs[2].text(
+    0.02,
+    0.95,
+    labels[2],
+    transform=axs[2].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+axs[2].text(
+    0.25,
+    0.12,
+    rf"Slope1: {coeff1_mean[0]:.3f}",
+    transform=axs[2].transAxes,  # 相対座標に変換
+    fontsize=30,
+    color="green",
+    va="bottom",
+)
+axs[2].text(
+    0.25,
+    0.025,
+    rf"Slope2: {coeff2_mean[0]:.3f}",
+    transform=axs[2].transAxes,  # 相対座標に変換
+    fontsize=30,
+    color="blue",
+    va="bottom",
+)
+
+# レイアウト調整と表示
+plt.tight_layout()
+plt.show()
+
+# %% アブスト用のグラフその4(2つの心拍変動指標についてバンドの平均SlopeとXCorr)
+order = 4  # 次数を指定
+
+fs_title = 35
+fs_label = 40
+fs_ticks = 25
+fs_legend = 30
+
+fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
+
+# プロットする範囲をsliceオブジェクトにする
+range_slice = slice(1, len(s))
+print(f"len(s): {len(s)}")
+
+# プロット設定
+# fig, axs = plt.subplots(1, 2, figsize=(18, 8))  # 横並びで2つのプロット
+# fig.suptitle("Combined Plots for EEG Bands and F Functions", fontsize=20)
+
+bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
+
+# 1つ目のグラフ：0行0～4列を統合
+colors = ["red", "blue", "green", "orange", "purple"]
+for band_ind, eeg_band in enumerate(eeg_bands[:5]):
+    rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # データ取得
+    axs[0].plot(np.log10(s[range_slice]), rho_mean_dmca4, label=f"{bands[band_ind]} Ratio", color=colors[band_ind])
+
+# グラフの装飾
+axs[0].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
+axs[0].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+axs[0].set_ylabel(r"$\rho$", fontsize=fs_label)
+axs[0].set_ylim(-1, 1)
+axs[0].axhline(0, linestyle="--", color="gray")
+axs[0].legend(fontsize=20, loc="lower left")
+axs[0].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[0].text(
+    0.02,
+    0.95,
+    labels[0],
+    transform=axs[0].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+
+# 2つ目のグラフ：log10F1_mean_dmca4 と log10F2_mean_dmca4 を色分けしてプロット
+axs[1].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, label=r"$F_1$", color="green", marker="^", facecolors="none", s=75)
+axs[1].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, label=r"$F_2$", color="blue", marker="s", facecolors="none", s=75)
+# 新しい直線の式を生成
+coeff1_mean_modified = [coeff1_mean[0], coeff1_mean[1]]
+fitted1_mean_modified = np.poly1d(coeff1_mean_modified)
+axs[1].plot(np.log10(s[8:20]), fitted1_mean_modified(np.log10(s[8:20])) - 0.07, color="green", linestyle=(0, (5, 3)), lw=3)
+fitted2_mean_modified = np.poly1d([fitted2_mean[1], fitted2_mean[0] + 0.1])
+axs[1].plot(np.log10(s[8:20]), fitted2_mean_modified(np.log10(s[8:20])), color="blue", linestyle=(0, (5, 3)), lw=3)
+
+axs[1].set_title(f"EEG and {column_name_of_HRV_measure}", fontsize=fs_title)  # タイトルを空白に設定
+axs[1].set_title("    and           ", fontsize=fs_title)  # タイトルを空白に設定
+axs[1].text(
+    0.145,
+    1,
+    "EEG",
+    transform=axs[1].transAxes,  # 相対座標に変換
+    fontsize=fs_title,
+    color="green",
+    va="bottom",
+)
+axs[1].text(
+    0.515,
+    1,
+    f"{column_name_of_HRV_measure}",
+    transform=axs[1].transAxes,  # 相対座標に変換
+    fontsize=fs_title,
+    color="blue",
+    va="bottom",
+)
+
+axs[1].set_xlabel(r"$\log_{10}s$", fontsize=fs_label)
+axs[1].set_ylabel(r"$\log_{10}F$", fontsize=fs_label)
+axs[1].legend(fontsize=fs_label)
+axs[1].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[1].legend(
+    fontsize=fs_legend,
+    labelspacing=0.3,  # ラベル間の縦のスペースを調整
+    handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
+    handletextpad=0.1,  # 線とテキスト間のスペースを調整
+    borderpad=0.2,  # 凡例全体の内側の余白
+)
+axs[1].text(
+    0.02,
+    0.95,
+    labels[1],
+    transform=axs[1].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+# 脳波のバンドにおけるSlopeの平均値
+band_slope = []
+for band_ind, eeg_band in enumerate(eeg_bands):
+    band_log10F1_mean = log10F1_mean[band_ind]
+    band_coeff1_mean = np.polyfit(np.log10(s[range_slice]), band_log10F1_mean[order // 2][range_slice], 1)
+    band_fitted1_mean = np.poly1d((band_coeff1_mean))
+    band_slope.append(band_coeff1_mean[0])
+# band_log10F1_mean を NumPy 配列に変換
+band_slope = np.array(band_slope)
+band_slope_mean = np.mean(band_slope)
+band_slope_std = np.std(band_slope)
+axs[1].text(
+    0.4,
+    0.25,
+    rf"{band_slope_mean:.3f}$\pm${band_slope_std:.3f}",
+    transform=axs[1].transAxes,  # 相対座標に変換
+    fontsize=25,
+    color="green",
+    va="bottom",
+    rotation=np.degrees(np.arctan(coeff1_mean[0]) + 0.1),
+    rotation_mode="anchor",
+)
+axs[1].text(
+    0.35,
+    0.525,
+    rf"{coeff2_mean[0]:.3f}",
+    transform=axs[1].transAxes,  # 相対座標に変換
+    fontsize=25,
+    color="blue",
+    va="bottom",
+    rotation=np.degrees(np.arctan(fitted2_mean_modified[1]) + 0.1),
+    rotation_mode="anchor",
+)
+
+# レイアウト調整と表示
+plt.tight_layout()
+plt.show()
+
+# %%
+# print(coeff1_mean.shape)
+# log10F1_mean_mean = np.mean(log10F1_mean, axis=0)
+# print(log10F1_mean_mean.shape)
+# log10F1_mean_std = np.std(log10F1_mean, axis=0)
+# print(log10F1_mean_std.shape)
+# coeff1_mean_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_mean[order // 2][range_slice], 1)
+# fitted1_mean_mean = np.poly1d((coeff1_mean_mean))
+# print(coeff1_mean_mean[0])
+# coeff1_mean_std = np.polyfit(np.log10(s[range_slice]), log10F1_mean_std[order // 2][range_slice], 1)
+# fitted1_mean_std = np.poly1d((coeff1_mean_std))
+# print(coeff1_mean_std[0])
+
+# %%
+# 先にスロープを求めてその平均と標準偏差を求める
+print(log10F1_mean.shape)
+band_slope = []
+for band_ind, eeg_band in enumerate(eeg_bands):
+    band_log10F1_mean = log10F1_mean[band_ind]
+    band_coeff1_mean = np.polyfit(np.log10(s[range_slice]), band_log10F1_mean[order // 2][range_slice], 1)
+    band_fitted1_mean = np.poly1d((band_coeff1_mean))
+    band_slope.append(band_coeff1_mean[0])
+
+# band_log10F1_mean を NumPy 配列に変換
+band_slope = np.array(band_slope)
+# shape を表示
+print(band_slope.shape)
+band_slope_mean = np.mean(band_slope)
+band_slope_std = np.std(band_slope)
+print(band_slope_mean)
+print(band_slope_std)
+
+# %%
+print(log10F1_mean_dmca4.shape)
+print(np.mean(log10F1_mean_dmca4))
 
 # %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
 # fig, axs = plt.subplots(2, 3, figsize=(20, 14))
