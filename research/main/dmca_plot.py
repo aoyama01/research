@@ -787,12 +787,12 @@ plt.show()
 
 
 # %% アブスト用のグラフその3(生データ)
-order = 4  # 次数を指定
-
 fs_title = 35
 fs_label = 40
 fs_ticks = 25
 fs_legend = 30
+
+labels = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)"]
 
 # プロットしたい生データを指定
 # [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2，[29:30]は20P自宅2
@@ -807,41 +807,44 @@ with open(file_name, "rb") as file:
 # 正しいエンコーディングでファイルを読み込む
 data = pd.read_csv(file_name, encoding=detected_encoding)
 
-# それぞれの列を抽出
-x1 = data.iloc[:, 9 + 0].values  # Deltaは +0 でおｋ
-x2 = data.iloc[:, column_index_of_HRV_measure].values
-n = len(x1)
+fig, axs = plt.subplots(1, 6, figsize=(36, 7))
 
-fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
-
+bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
 # 脳波の生データをプロット
-axs[0].plot(range(n), x1, color="green")
-axs[0].set_title(r"$\delta$ ratio", fontsize=fs_title)
-axs[0].set_xlabel("i", fontsize=fs_label)
-axs[0].set_ylabel(r"$\delta$ ratio", fontsize=fs_label)
-axs[0].tick_params(axis="both", which="both", labelsize=fs_ticks)
-axs[0].text(
-    0.02,
-    0.95,
-    labels[0],
-    transform=axs[0].transAxes,
-    fontsize=fs_label,
-    fontweight="bold",
-    va="top",
-    ha="left",
-)
+for band_i, band in enumerate(bands):
+    x1 = data.iloc[:, 9 + band_i].values  # Deltaは +0 でおｋ
+    n = len(x1)
+    axs[band_i].plot(range(n), x1, color="green")
+    axs[band_i].set_ylim(0, 1)
+    axs[band_i].set_title(f"{band} waves", fontsize=fs_title)
+    axs[band_i].set_xlabel("i", fontsize=fs_label)
+    if band_i == 0:
+        axs[band_i].set_ylabel("Relative Power", fontsize=fs_label)
+    axs[band_i].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2)
+    axs[band_i].text(
+        0.02,
+        0.95,
+        labels[band_i],
+        transform=axs[band_i].transAxes,
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
+    )
 
 # 心拍の生データをプロット
-axs[1].plot(range(n), x2, color="blue")
-axs[1].set_title(column_name_of_HRV_measure, fontsize=fs_title)
-axs[1].set_xlabel("i", fontsize=fs_label)
-axs[1].set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
-axs[1].tick_params(axis="both", which="both", labelsize=fs_ticks)
-axs[1].text(
+x2 = data.iloc[:, column_index_of_HRV_measure].values
+column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
+axs[5].plot(range(n), x2, color="blue")
+axs[5].set_title(column_name_of_HRV_measure, fontsize=fs_title)
+axs[5].set_xlabel("i", fontsize=fs_label)
+axs[5].set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
+axs[5].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[5].text(
     0.02,
     0.95,
-    labels[1],
-    transform=axs[1].transAxes,
+    labels[5],
+    transform=axs[5].transAxes,
     fontsize=fs_label,
     fontweight="bold",
     va="top",
