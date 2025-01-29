@@ -882,7 +882,7 @@ for band_ind, eeg_band in enumerate(eeg_bands[:5]):
     axs[0].plot(
         np.log10(s[range_slice]),
         rho_mean_dmca4,
-        label=f"{bands[band_ind]} Ratio",
+        label=f"{bands[band_ind]} ratio",
         color=colors[band_ind],
         linestyle=linestyles[band_ind % len(linestyles)],  # リストの範囲を超えないように
         lw=2.5,
