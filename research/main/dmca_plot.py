@@ -786,7 +786,7 @@ plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
 
-# %% アブスト用のグラフその3(生データとバンドの平均SlopeとXCorr)
+# %% アブスト用のグラフその3(生データ)
 order = 4  # 次数を指定
 
 fs_title = 35
@@ -794,58 +794,25 @@ fs_label = 40
 fs_ticks = 25
 fs_legend = 30
 
-# x1 = data.iloc[:, 9 + 0].values
-# n = len(x1)
-# x2 = data.iloc[:, column_index_of_HRV_measure].values
+# プロットしたい生データを指定
+# [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2，[29:30]は20P自宅2
+file_name = all_combined_files[29]
 
+# ファイルの読み込み
+os.chdir(script_dir)
+os.chdir(DIR_EEG)  # ディレクトリの移動
+with open(file_name, "rb") as file:
+    # ファイルのエンコーディングを検出
+    detected_encoding = detect(file.read())["encoding"]
+# 正しいエンコーディングでファイルを読み込む
+data = pd.read_csv(file_name, encoding=detected_encoding)
 
-# 任意のプロット用関数（例: ユーザーが提供する関数をここで受け取る）
-# def custom_plot_func(ax, plot_index):
-#     if plot_index == 0:
-#         # x = np.linspace(0, 10, 100)
-#         # y = np.sin(x)
-#         # ax.plot(x, y, label="Sine Wave", color="blue")
-#         # 脳波の生データをプロット
-#         # x1 = data.iloc[:, 9 + 0].values
-#         ax.plot(range(n), x1, color="green")
-#         ax.set_title(r"$\delta$ ratio", fontsize=fs_title)
-#         ax.set_xlabel("i", fontsize=fs_label)
-#         ax.set_ylabel(r"$\delta$ ratio", fontsize=fs_label)
+# それぞれの列を抽出
+x1 = data.iloc[:, 9 + 0].values  # Deltaは +0 でおｋ
+x2 = data.iloc[:, column_index_of_HRV_measure].values
+n = len(x1)
 
-#     elif plot_index == 1:
-#         # x = np.linspace(0, 10, 100)
-#         # y = np.cos(x)
-#         # ax.plot(x, y, label="Cosine Wave", color="green")
-#         # 心拍の生データをプロット
-#         ax.plot(range(n), x2, color="blue")
-#         ax.set_title(column_name_of_HRV_measure, fontsize=fs_title)
-#         ax.set_xlabel("i", fontsize=fs_label)
-#         ax.set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
-#     # ax.set_title(f"Custom Plot {plot_index+1}", fontsize=fs_title)
-#     # ax.legend(fontsize=fs_legend)
-#     # ax.set_xlabel("X-axis", fontsize=fs_label)
-#     # ax.set_ylabel("Y-axis", fontsize=fs_label)
-#     ax.tick_params(axis="both", which="both", labelsize=fs_ticks)
-
-
-# # グラフの作成
-# fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
-
-# # 左から1番目と2番目に任意のグラフをプロット
-# for i in range(2):
-#     custom_plot_func(axs[i], i)
-#     axs[i].text(
-#         0.02,
-#         0.95,
-#         labels[i],
-#         transform=axs[i].transAxes,
-#         fontsize=fs_label,
-#         fontweight="bold",
-#         va="top",
-#         ha="left",
-#     )
-
-fig, axs = plt.subplots(1, 4, figsize=(30, 7.5))
+fig, axs = plt.subplots(1, 2, figsize=(15, 7.5))
 
 # 脳波の生データをプロット
 axs[0].plot(range(n), x1, color="green")
@@ -879,90 +846,6 @@ axs[1].text(
     fontweight="bold",
     va="top",
     ha="left",
-)
-
-
-# プロットする範囲をsliceオブジェクトにする
-range_slice = slice(1, len(s))
-print(f"len(s): {len(s)}")
-
-# プロット設定
-# fig, axs = plt.subplots(1, 2, figsize=(18, 8))  # 横並びで2つのプロット
-# fig.suptitle("Combined Plots for EEG Bands and F Functions", fontsize=20)
-
-bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
-
-# 1つ目のグラフ：0行0～4列を統合
-colors = ["red", "blue", "green", "orange", "purple"]
-for band_ind, eeg_band in enumerate(eeg_bands[:5]):
-    rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # データ取得
-    axs[3].plot(np.log10(s[range_slice]), rho_mean_dmca4, label=f"{bands[band_ind]} Ratio", color=colors[band_ind])
-
-# グラフの装飾
-axs[3].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
-axs[3].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
-axs[3].set_ylabel(r"$\rho$", fontsize=fs_label)
-axs[3].set_ylim(-1, 1)
-axs[3].axhline(0, linestyle="--", color="gray")
-axs[3].legend(fontsize=20, loc="lower left")
-axs[3].tick_params(axis="both", which="both", labelsize=fs_ticks)
-axs[3].text(
-    0.02,
-    0.95,
-    labels[3],
-    transform=axs[3].transAxes,
-    fontsize=fs_label,
-    fontweight="bold",
-    va="top",
-    ha="left",
-)
-
-# 2つ目のグラフ：log10F1_mean_dmca4 と log10F2_mean_dmca4 を色分けしてプロット
-axs[2].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, label=r"$F_1$", color="green", marker="^", facecolors="none", s=75)
-axs[2].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, label=r"$F_2$", color="blue", marker="s", facecolors="none", s=75)
-axs[2].plot(np.log10(s[range_slice]), fitted1_mean(np.log10(s[range_slice])), color="green", linestyle="--")
-axs[2].plot(np.log10(s[range_slice]), fitted2_mean(np.log10(s[range_slice])), color="blue", linestyle="--")
-
-# グラフの装飾
-axs[2].set_title(f"$\delta$ ratio & {column_name_of_HRV_measure}", fontsize=fs_title)
-axs[2].set_xlabel(r"$\log_{10}s$", fontsize=fs_label)
-axs[2].set_ylabel(r"$\log_{10}F$", fontsize=fs_label)
-axs[2].legend(fontsize=fs_label)
-axs[2].tick_params(axis="both", which="both", labelsize=fs_ticks)
-axs[2].legend(
-    fontsize=fs_legend,
-    labelspacing=0.3,  # ラベル間の縦のスペースを調整
-    handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
-    handletextpad=0.1,  # 線とテキスト間のスペースを調整
-    borderpad=0.2,  # 凡例全体の内側の余白
-)
-axs[2].text(
-    0.02,
-    0.95,
-    labels[2],
-    transform=axs[2].transAxes,
-    fontsize=fs_label,
-    fontweight="bold",
-    va="top",
-    ha="left",
-)
-axs[2].text(
-    0.25,
-    0.12,
-    rf"Slope1: {coeff1_mean[0]:.3f}",
-    transform=axs[2].transAxes,  # 相対座標に変換
-    fontsize=30,
-    color="green",
-    va="bottom",
-)
-axs[2].text(
-    0.25,
-    0.025,
-    rf"Slope2: {coeff2_mean[0]:.3f}",
-    transform=axs[2].transAxes,  # 相対座標に変換
-    fontsize=30,
-    color="blue",
-    va="bottom",
 )
 
 # レイアウト調整と表示
@@ -1117,18 +1000,6 @@ axs[1].text(
 plt.tight_layout()
 plt.show()
 
-# %%
-# print(coeff1_mean.shape)
-# log10F1_mean_mean = np.mean(log10F1_mean, axis=0)
-# print(log10F1_mean_mean.shape)
-# log10F1_mean_std = np.std(log10F1_mean, axis=0)
-# print(log10F1_mean_std.shape)
-# coeff1_mean_mean = np.polyfit(np.log10(s[range_slice]), log10F1_mean_mean[order // 2][range_slice], 1)
-# fitted1_mean_mean = np.poly1d((coeff1_mean_mean))
-# print(coeff1_mean_mean[0])
-# coeff1_mean_std = np.polyfit(np.log10(s[range_slice]), log10F1_mean_std[order // 2][range_slice], 1)
-# fitted1_mean_std = np.poly1d((coeff1_mean_std))
-# print(coeff1_mean_std[0])
 
 # %%
 # 先にスロープを求めてその平均と標準偏差を求める
