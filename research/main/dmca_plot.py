@@ -5,6 +5,7 @@ import japanize_matplotlib  # noqa: F401
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 from chardet import detect
 from icecream import ic
 from IPython.display import display
@@ -50,7 +51,7 @@ remove_sleep_stage = ""
 # 除外したい睡眠段階その2
 remove_sleep_stage_2 = ""
 # 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 16
+column_index_of_HRV_measure = 17
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -391,6 +392,73 @@ print(f"Slope1の平均値:     {slope1_mean_person}")
 print(f"Slope1の標準偏差:   {slope1_sd_person}")
 print(f"Slope2の平均値:     {slope2_mean_person}")
 print(f"Slope2の標準偏差:   {slope2_sd_person}")
+
+# %% 統計検定 (Slopeの平均値を比較)
+# 与えられたデータ
+mean_A = slope1_mean_person  # パラメータAの平均
+mean_B = slope2_mean_person  # パラメータBの平均
+var_A = slope1_sd_person  # パラメータAの分散
+var_B = slope2_sd_person  # パラメータBの分散
+n_A = len(slope1_each_person)  # サンプル数
+n_B = len(slope2_each_person)  # サンプル数
+# 標準偏差を計算
+std_A = np.sqrt(var_A)
+std_B = np.sqrt(var_B)
+
+# F検定（分散の等しさを検定）
+print("F検定を行います．")
+F_stat = var_A / var_B  # F値の計算
+df1 = n_A - 1  # 自由度1
+df2 = n_B - 1  # 自由度2
+
+# p値の計算（片側検定）
+p_value_F = stats.f.cdf(F_stat, df1, df2) * 2  # 両側検定のため2倍する
+# 結果を出力
+print(f"F値: {F_stat}")
+print(f"p値: {p_value_F}")
+
+if p_value_F > 0.05:
+    print(
+        "p値が0.05よりも大きいため，データAとデータBの分散の差は統計的に優位ではないと考えられます．\nつまり，分散が等しいとみなすことができます．\n"
+    )
+
+
+# ウェルチのt検定（独立t検定・等分散を仮定しない）
+t_stat, p_value = stats.ttest_ind_from_stats(
+    mean1=mean_A,
+    std1=std_A,
+    nobs1=n_A,
+    mean2=mean_B,
+    std2=std_B,
+    nobs2=n_B,
+    equal_var=False,  # 等分散を仮定しない
+)
+# 結果を出力
+print("ウェルチのt検定（独立t検定・等分散を仮定しない）の結果: ")
+print(f"t値: {t_stat}")
+print(f"p値: {p_value}")
+if p_value_F > 0.05:
+    print("p値が0.05よりも大きいため，統計的に有意な差はないと考えられます．\nつまり，2つの平均値には有意な差があるとは言えません．\n")
+
+print()  # 改行
+
+# スチューデントのt検定（等分散を仮定）
+t_stat_student, p_value_student = stats.ttest_ind_from_stats(
+    mean1=mean_A,
+    std1=std_A,
+    nobs1=n_A,
+    mean2=mean_B,
+    std2=std_B,
+    nobs2=n_B,
+    equal_var=True,  # 等分散を仮定
+)
+# 結果を出力
+print("スチューデントのt検定の結果: ")
+print(f"t値: {t_stat_student}")
+print(f"p値: {p_value_student}")
+if p_value_F > 0.05:
+    print("p値が0.05よりも大きいため，統計的に有意な差はないと考えられます．\nつまり，2つの平均値には有意な差があるとは言えません．\n")
+
 
 # %% 【実行する】すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
 # プロットする範囲をsliceオブジェクトにする
