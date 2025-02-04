@@ -350,6 +350,47 @@ print(f"log10F12_mean: {log10F12_mean.shape}")
 print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
 print(f"rho_maen.shape: {rho_mean.shape}")
 
+# %% Slope1 と Slope2 の平均と標準偏差を求める
+# 平均求めてみる
+log10F1_band_mean = np.mean(log10F1_4d_array_masked, axis=1)
+log10F2_band_mean = np.mean(log10F2_4d_array_masked, axis=1)
+print(log10F2_band_mean.shape)
+
+# 4次の部分だけ取得
+log10F1_band_mean_dmca4 = log10F1_band_mean[:, 2:3, :]
+log10F2_band_mean_dmca4 = log10F2_band_mean[:, 2:3, :]
+print(log10F2_band_mean_dmca4)
+print(log10F2_band_mean_dmca4.shape)
+# (15, 40) に reshape
+log10F1_band_mean_dmca4 = log10F1_band_mean_dmca4.reshape(15, 40)
+log10F2_band_mean_dmca4 = log10F2_band_mean_dmca4.reshape(15, 40)
+print(log10F2_band_mean_dmca4)
+print(log10F2_band_mean_dmca4.shape)
+
+print(log10F2_band_mean_dmca4.shape[0])
+
+range_slice = slice(1, len(s))  # 範囲をsliceオブジェクトにする
+# personごとのスロープを求める
+slope1_each_person = []
+slope2_each_person = []
+for person_i in range(log10F1_band_mean_dmca4.shape[0]):
+    slope1_each_person.append(
+        np.polyfit(np.log10(s[range_slice]), log10F1_band_mean_dmca4[person_i][range_slice], 1)[0]
+    )  # 回帰係数(polyfitは傾き[0]と切片[1]を返す)
+    slope2_each_person.append(
+        np.polyfit(np.log10(s[range_slice]), log10F2_band_mean_dmca4[person_i][range_slice], 1)[0]
+    )  # 回帰係数(polyfitは傾き[0]と切片[1]を返す)
+print(slope2_each_person)
+print(len(slope2_each_person))
+
+slope1_mean_person = np.mean(slope1_each_person)
+slope1_sd_person = np.std(slope1_each_person)
+slope2_mean_person = np.mean(slope2_each_person)
+slope2_sd_person = np.std(slope2_each_person)
+print(f"Slope1の平均値:     {slope1_mean_person}")
+print(f"Slope1の標準偏差:   {slope1_sd_person}")
+print(f"Slope2の平均値:     {slope2_mean_person}")
+print(f"Slope2の標準偏差:   {slope2_sd_person}")
 
 # %% 【実行する】すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
 # プロットする範囲をsliceオブジェクトにする
