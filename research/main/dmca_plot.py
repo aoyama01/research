@@ -10,7 +10,7 @@ from chardet import detect
 from icecream import ic
 from IPython.display import display
 from scipy.signal import savgol_filter
-from scipy.stats import zscore
+from scipy.stats import pearsonr, zscore
 
 ###
 ic.disable()  # icによるデバッグを無効化
@@ -352,26 +352,19 @@ print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
 print(f"rho_maen.shape: {rho_mean.shape}")
 
 # %% Slope1 と Slope2 の平均と標準偏差を求める
-# 平均求めてみる
+# バンドでの平均求めてみる
 log10F1_band_mean = np.mean(log10F1_4d_array_masked, axis=1)
 log10F2_band_mean = np.mean(log10F2_4d_array_masked, axis=1)
-print(log10F2_band_mean.shape)
 
 # 4次の部分だけ取得
 log10F1_band_mean_dmca4 = log10F1_band_mean[:, 2:3, :]
 log10F2_band_mean_dmca4 = log10F2_band_mean[:, 2:3, :]
-print(log10F2_band_mean_dmca4)
-print(log10F2_band_mean_dmca4.shape)
-# (15, 40) に reshape
+# (15, 1, 40) から (15, 40) に reshape
 log10F1_band_mean_dmca4 = log10F1_band_mean_dmca4.reshape(15, 40)
 log10F2_band_mean_dmca4 = log10F2_band_mean_dmca4.reshape(15, 40)
-print(log10F2_band_mean_dmca4)
-print(log10F2_band_mean_dmca4.shape)
 
-print(log10F2_band_mean_dmca4.shape[0])
-
-range_slice = slice(1, len(s))  # 範囲をsliceオブジェクトにする
 # personごとのスロープを求める
+range_slice = slice(1, len(s))  # 範囲をsliceオブジェクトにする
 slope1_each_person = []
 slope2_each_person = []
 for person_i in range(log10F1_band_mean_dmca4.shape[0]):
@@ -381,9 +374,8 @@ for person_i in range(log10F1_band_mean_dmca4.shape[0]):
     slope2_each_person.append(
         np.polyfit(np.log10(s[range_slice]), log10F2_band_mean_dmca4[person_i][range_slice], 1)[0]
     )  # 回帰係数(polyfitは傾き[0]と切片[1]を返す)
-print(slope2_each_person)
-print(len(slope2_each_person))
 
+# 平均と標準偏差を求める
 slope1_mean_person = np.mean(slope1_each_person)
 slope1_sd_person = np.std(slope1_each_person)
 slope2_mean_person = np.mean(slope2_each_person)
@@ -393,7 +385,23 @@ print(f"Slope1の標準偏差:   {slope1_sd_person}")
 print(f"Slope2の平均値:     {slope2_mean_person}")
 print(f"Slope2の標準偏差:   {slope2_sd_person}")
 
-# %% 統計検定 (Slopeの平均値を比較)
+
+# %% Slope1とSlope2(15人分)の相関係数の計算
+# 相関係数を計算
+correlation_matrix = np.corrcoef(slope1_each_person, slope2_each_person)
+# 結果の相関係数を取得（上三角・下三角が同じ）
+correlation_coefficient = correlation_matrix[0, 1]
+print("相関係数:", correlation_coefficient)
+
+print()  # 改行
+
+# ピアソンの相関係数と p 値を計算
+corr, p_value = pearsonr(slope1_each_person, slope2_each_person)
+print("相関係数:", corr)
+print("p値:", p_value)
+
+
+# %% 独立(対応なしの)t検定 (Slopeの平均値の差を検定)
 # 与えられたデータ
 mean_A = slope1_mean_person  # パラメータAの平均
 mean_B = slope2_mean_person  # パラメータBの平均
@@ -434,7 +442,7 @@ t_stat, p_value = stats.ttest_ind_from_stats(
     equal_var=False,  # 等分散を仮定しない
 )
 # 結果を出力
-print("ウェルチのt検定（独立t検定・等分散を仮定しない）の結果: ")
+print("ウェルチのt検定（独立t検定・等分散を仮定しない・正規性を仮定）の結果: ")
 print(f"t値: {t_stat}")
 print(f"p値: {p_value}")
 if p_value_F > 0.05:
@@ -453,12 +461,118 @@ t_stat_student, p_value_student = stats.ttest_ind_from_stats(
     equal_var=True,  # 等分散を仮定
 )
 # 結果を出力
-print("スチューデントのt検定の結果: ")
+print("スチューデントのt検定（独立t検定・等分散を仮定・正規性を仮定）の結果: ")
 print(f"t値: {t_stat_student}")
 print(f"p値: {p_value_student}")
 if p_value_F > 0.05:
     print("p値が0.05よりも大きいため，統計的に有意な差はないと考えられます．\nつまり，2つの平均値には有意な差があるとは言えません．\n")
 
+
+# %% 対応ありのt検定
+# 有意水準
+alpha = 0.05
+
+# t検定を実行
+t_statistic, p_value = stats.ttest_rel(slope1_each_person, slope2_each_person)
+
+print("t統計量:", t_statistic)
+print("p値:", p_value)
+
+# 判定
+if p_value < alpha:
+    print("帰無仮説を棄却（統計的に有意）")
+else:
+    print("帰無仮説を採択（統計的に有意ではない）")
+
+
+# %% データの正規性を検定
+# データが正規分布に従うかどうかを コルモゴロフ・スミルノフ検定 (Kolmogorov-Smirnov test) と シャピロ・ウィルク検定 (Shapiro-Wilk test) で調べる関数
+def check_normality(data, alpha=0.05):
+    """
+    与えられたデータが正規分布に従うかどうかをコルモゴロフ・スミルノフ検定とシャピロ・ウィルク検定で調べる関数
+    :param data: 検定するデータ（1次元配列）
+    :param alpha: 有意水準（デフォルトは0.05）
+    :return: 検定結果
+    """
+    print("=== データの正規性検定 ===")
+
+    # コルモゴロフ・スミルノフ検定
+    ks_stat, ks_p = stats.kstest(data, "norm")
+    print(f"Kolmogorov-Smirnov Test: statistic={ks_stat:.4f}, p-value={ks_p:.4f}")
+    if ks_p > alpha:
+        print("Kolmogorov-Smirnov Test: データは正規分布に従う (p > 0.05)")
+    else:
+        print("Kolmogorov-Smirnov Test: データは正規分布に従わない (p <= 0.05)")
+
+    # シャピロ・ウィルク検定
+    shapiro_stat, shapiro_p = stats.shapiro(data)
+    print(f"Shapiro-Wilk Test: statistic={shapiro_stat:.4f}, p-value={shapiro_p:.4f}")
+    if shapiro_p > alpha:
+        print("Shapiro-Wilk Test: データは正規分布に従う (p > 0.05)")
+    else:
+        print("Shapiro-Wilk Test: データは正規分布に従わない (p <= 0.05)")
+
+
+# Slope1の検定
+print("\nSlope1の検定:")
+check_normality(slope1_each_person)
+
+# 正規分布に従わないデータの検定
+print("\nSlope2の検定:")
+check_normality(slope2_each_person)
+
+# QQプロットもしてみる(プロットが45度の直線に沿えば正規性あり)
+print("\nQQプロットもしてみる")
+# QQプロットの作成
+stats.probplot(slope1_each_person, dist="norm", plot=plt)  # 正規分布を指定
+# stats.probplot(slope1_each_person, dist=stats.expon, plot=plt)  # 指数分布を指定
+# stats.probplot(slope1_each_person, dist=stats.lognorm, sparams=(1,), plot=plt)  # 対数正規分布を指定
+# stats.probplot(slope1_each_person, dist=stats.gamma, sparams=(2,), plot=plt)  # ガンマ分布を指定
+plt.title("QQ Plot (Slope1)")
+plt.show()
+# QQプロットの作成
+stats.probplot(slope2_each_person, dist="norm", plot=plt)  # 正規分布を指定
+# stats.probplot(slope2_each_person, dist=stats.expon, plot=plt)  # 指数分布を指定
+# stats.probplot(slope2_each_person, dist=stats.lognorm, sparams=(1,), plot=plt)  # 対数正規分布を指定
+plt.title("QQ Plot (Slope2)")
+plt.show()
+
+
+# %% ノンパラメトリック検定 (Slopeの中央値の差を検定)
+def compare_means_nonparametric(data_A, data_B, paired=False):
+    """
+    正規性が仮定できない場合に、データAとデータBの平均値を比較する関数。
+
+    パラメータ:
+    data_A: list or array, データAの値
+    data_B: list or array, データBの値
+    paired: bool, Trueならウィルコクソンの符号付き順位検定（対応あり）、
+                  Falseならマン・ホイットニーU検定（独立群）
+
+    出力:
+    統計量とp値
+    """
+    if paired:
+        # ウィルコクソンの符号付き順位検定（対応あり）
+        stat, p_value = stats.wilcoxon(data_A, data_B)
+    else:
+        # マン・ホイットニーU検定（独立群）
+        stat, p_value = stats.mannwhitneyu(data_A, data_B, alternative="two-sided")
+
+    return stat, p_value
+
+
+# 使用例（データは適当に設定）
+data_A = slope1_each_person
+data_B = slope2_each_person
+
+# 独立した2群の比較（マン・ホイットニーU検定）
+stat_u, p_value_u = compare_means_nonparametric(data_A, data_B, paired=False)
+print(f"Mann-Whitney U 検定: U値 = {stat_u:.3f}, p値 = {p_value_u}")
+
+# 対応のあるデータの比較（ウィルコクソン符号付き順位検定）
+stat_w, p_value_w = compare_means_nonparametric(data_A, data_B, paired=True)
+print(f"Wilcoxon 検定: W値 = {stat_w}, p値 = {p_value_w}")
 
 # %% 【実行する】すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
 # プロットする範囲をsliceオブジェクトにする
