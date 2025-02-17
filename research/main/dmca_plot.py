@@ -51,7 +51,7 @@ remove_sleep_stage = ""
 # 除外したい睡眠段階その2
 remove_sleep_stage_2 = ""
 # 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 17
+column_index_of_HRV_measure = 18
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -387,6 +387,8 @@ print(f"Slope2の標準偏差:   {slope2_sd_person}")
 
 
 # %% Slope1とSlope2(15人分)の相関係数の計算
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
 # 相関係数を計算
 correlation_matrix = np.corrcoef(slope1_each_person, slope2_each_person)
 # 結果の相関係数を取得（上三角・下三角が同じ）
@@ -402,6 +404,8 @@ print("p値:", p_value)
 
 
 # %% 独立(対応なしの)t検定 (Slopeの平均値の差を検定)
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
 # 与えられたデータ
 mean_A = slope1_mean_person  # パラメータAの平均
 mean_B = slope2_mean_person  # パラメータBの平均
@@ -469,6 +473,8 @@ if p_value_F > 0.05:
 
 
 # %% 対応ありのt検定
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
 # 有意水準
 alpha = 0.05
 
@@ -486,6 +492,9 @@ else:
 
 
 # %% データの正規性を検定
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+
 # データが正規分布に従うかどうかを コルモゴロフ・スミルノフ検定 (Kolmogorov-Smirnov test) と シャピロ・ウィルク検定 (Shapiro-Wilk test) で調べる関数
 def check_normality(data, alpha=0.05):
     """
@@ -539,6 +548,9 @@ plt.show()
 
 
 # %% ノンパラメトリック検定 (Slopeの中央値の差を検定)
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+
 def compare_means_nonparametric(data_A, data_B, paired=False):
     """
     正規性が仮定できない場合に、データAとデータBの平均値を比較する関数。
