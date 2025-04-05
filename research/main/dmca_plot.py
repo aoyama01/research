@@ -5,11 +5,12 @@ import japanize_matplotlib  # noqa: F401
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import scipy.stats as stats
 from chardet import detect
 from icecream import ic
 from IPython.display import display
 from scipy.signal import savgol_filter
-from scipy.stats import zscore
+from scipy.stats import pearsonr, zscore
 
 ###
 ic.disable()  # icによるデバッグを無効化
@@ -32,7 +33,7 @@ ic(all_combined_files)
 # LF，LF/HFでの相関も強くなる．
 # だけど，MeanRRでの相関はめちゃ小さくなる．
 #
-# "R"を除外すると，MeanRRでの相関が強くなる
+# "R"を除外すると，MeanRRでの相関がちょっと強くなる
 #
 #
 # %% OPTIONS
@@ -46,9 +47,11 @@ is_savefig = False
 # 空文字, N1, N2, N3, R, W のいずれかを入力(睡眠段階で切り出さないときは空文字列．切り出した行数が少ないとエラーが生じて解析できない)
 select_sleep_stage = ""
 # 除外したい睡眠段階
-remove_sleep_stage = "W"
+remove_sleep_stage = ""
+# 除外したい睡眠段階その2
+remove_sleep_stage_2 = ""
 # 16:MeanRR, 17:SDRR, 18:RMSSD, 19:pNN50, 20:HRVI. 21:TINN, 22:LF, 23:HF, 24:LF/HF
-column_index_of_HRV_measure = 24
+column_index_of_HRV_measure = 18
 ### OPTIONS ###
 
 # %% 脳波とHRVに対するDMCAを，それぞれのファイルで行う
@@ -90,6 +93,8 @@ for file_ind, file_name in enumerate(all_combined_files):
         data = data[data.iloc[:, 2] == select_sleep_stage]  # 3列目が「sleep_stage」の行を抽出
     if remove_sleep_stage != "":
         data = data[data.iloc[:, 2] != remove_sleep_stage]  # 3列目が「sleep_stage」でない行を抽出
+    if remove_sleep_stage_2 != "":
+        data = data[data.iloc[:, 2] != remove_sleep_stage_2]  # 3列目が「sleep_stage」でない行を抽出
 
     # 列名に対応した文字列(csvファイルによって列名の形式が異なるため，こっちで指定)
     eeg_bands = [
@@ -121,8 +126,7 @@ for file_ind, file_name in enumerate(all_combined_files):
         # 解析対象となる列を抽出
         x1 = data.iloc[:, 9 + band_ind].values
         # # x1に強引にDeltaを入れたい場合
-        # if band_ind == 0:
-        #     break
+        # break
         # # 睡眠段階を解析する場合
         # x1 = data.iloc[:, 2].values
         # # 置き換え用の辞書を定義
@@ -347,8 +351,242 @@ print(f"log10F12_mean: {log10F12_mean.shape}")
 print(f"rho_4d_array_masked.shape: {rho_4d_array_masked.shape}")
 print(f"rho_maen.shape: {rho_mean.shape}")
 
+# %% Slope1 と Slope2 の平均と標準偏差を求める
+# バンドでの平均求めてみる
+log10F1_band_mean = np.mean(log10F1_4d_array_masked, axis=1)
+log10F2_band_mean = np.mean(log10F2_4d_array_masked, axis=1)
 
-# %% すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
+# 4次の部分だけ取得
+log10F1_band_mean_dmca4 = log10F1_band_mean[:, 2:3, :]
+log10F2_band_mean_dmca4 = log10F2_band_mean[:, 2:3, :]
+# (15, 1, 40) から (15, 40) に reshape
+log10F1_band_mean_dmca4 = log10F1_band_mean_dmca4.reshape(15, 40)
+log10F2_band_mean_dmca4 = log10F2_band_mean_dmca4.reshape(15, 40)
+
+# personごとのスロープを求める
+range_slice = slice(1, len(s))  # 範囲をsliceオブジェクトにする
+slope1_each_person = []
+slope2_each_person = []
+for person_i in range(log10F1_band_mean_dmca4.shape[0]):
+    slope1_each_person.append(
+        np.polyfit(np.log10(s[range_slice]), log10F1_band_mean_dmca4[person_i][range_slice], 1)[0]
+    )  # 回帰係数(polyfitは傾き[0]と切片[1]を返す)
+    slope2_each_person.append(
+        np.polyfit(np.log10(s[range_slice]), log10F2_band_mean_dmca4[person_i][range_slice], 1)[0]
+    )  # 回帰係数(polyfitは傾き[0]と切片[1]を返す)
+
+# 平均と標準偏差を求める
+slope1_mean_person = np.mean(slope1_each_person)
+slope1_sd_person = np.std(slope1_each_person)
+slope2_mean_person = np.mean(slope2_each_person)
+slope2_sd_person = np.std(slope2_each_person)
+print(f"Slope1の平均値:     {slope1_mean_person}")
+print(f"Slope1の標準偏差:   {slope1_sd_person}")
+print(f"Slope2の平均値:     {slope2_mean_person}")
+print(f"Slope2の標準偏差:   {slope2_sd_person}")
+
+
+# %% Slope1とSlope2(15人分)の相関係数の計算
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+# 相関係数を計算
+correlation_matrix = np.corrcoef(slope1_each_person, slope2_each_person)
+# 結果の相関係数を取得（上三角・下三角が同じ）
+correlation_coefficient = correlation_matrix[0, 1]
+print("相関係数:", correlation_coefficient)
+
+print()  # 改行
+
+# ピアソンの相関係数と p 値を計算
+corr, p_value = pearsonr(slope1_each_person, slope2_each_person)
+print("相関係数:", corr)
+print("p値:", p_value)
+
+
+# %% 独立(対応なしの)t検定 (Slopeの平均値の差を検定)
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+# 与えられたデータ
+mean_A = slope1_mean_person  # パラメータAの平均
+mean_B = slope2_mean_person  # パラメータBの平均
+var_A = slope1_sd_person  # パラメータAの分散
+var_B = slope2_sd_person  # パラメータBの分散
+n_A = len(slope1_each_person)  # サンプル数
+n_B = len(slope2_each_person)  # サンプル数
+# 標準偏差を計算
+std_A = np.sqrt(var_A)
+std_B = np.sqrt(var_B)
+
+# F検定（分散の等しさを検定）
+print("F検定を行います．")
+F_stat = var_A / var_B  # F値の計算
+df1 = n_A - 1  # 自由度1
+df2 = n_B - 1  # 自由度2
+
+# p値の計算（片側検定）
+p_value_F = stats.f.cdf(F_stat, df1, df2) * 2  # 両側検定のため2倍する
+# 結果を出力
+print(f"F値: {F_stat}")
+print(f"p値: {p_value_F}")
+
+if p_value_F > 0.05:
+    print(
+        "p値が0.05よりも大きいため，データAとデータBの分散の差は統計的に優位ではないと考えられます．\nつまり，分散が等しいとみなすことができます．\n"
+    )
+
+
+# ウェルチのt検定（独立t検定・等分散を仮定しない）
+t_stat, p_value = stats.ttest_ind_from_stats(
+    mean1=mean_A,
+    std1=std_A,
+    nobs1=n_A,
+    mean2=mean_B,
+    std2=std_B,
+    nobs2=n_B,
+    equal_var=False,  # 等分散を仮定しない
+)
+# 結果を出力
+print("ウェルチのt検定（独立t検定・等分散を仮定しない・正規性を仮定）の結果: ")
+print(f"t値: {t_stat}")
+print(f"p値: {p_value}")
+if p_value_F > 0.05:
+    print("p値が0.05よりも大きいため，統計的に有意な差はないと考えられます．\nつまり，2つの平均値には有意な差があるとは言えません．\n")
+
+print()  # 改行
+
+# スチューデントのt検定（等分散を仮定）
+t_stat_student, p_value_student = stats.ttest_ind_from_stats(
+    mean1=mean_A,
+    std1=std_A,
+    nobs1=n_A,
+    mean2=mean_B,
+    std2=std_B,
+    nobs2=n_B,
+    equal_var=True,  # 等分散を仮定
+)
+# 結果を出力
+print("スチューデントのt検定（独立t検定・等分散を仮定・正規性を仮定）の結果: ")
+print(f"t値: {t_stat_student}")
+print(f"p値: {p_value_student}")
+if p_value_F > 0.05:
+    print("p値が0.05よりも大きいため，統計的に有意な差はないと考えられます．\nつまり，2つの平均値には有意な差があるとは言えません．\n")
+
+
+# %% 対応ありのt検定
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+# 有意水準
+alpha = 0.05
+
+# t検定を実行
+t_statistic, p_value = stats.ttest_rel(slope1_each_person, slope2_each_person)
+
+print("t統計量:", t_statistic)
+print("p値:", p_value)
+
+# 判定
+if p_value < alpha:
+    print("帰無仮説を棄却（統計的に有意）")
+else:
+    print("帰無仮説を採択（統計的に有意ではない）")
+
+
+# %% データの正規性を検定
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+
+# データが正規分布に従うかどうかを コルモゴロフ・スミルノフ検定 (Kolmogorov-Smirnov test) と シャピロ・ウィルク検定 (Shapiro-Wilk test) で調べる関数
+def check_normality(data, alpha=0.05):
+    """
+    与えられたデータが正規分布に従うかどうかをコルモゴロフ・スミルノフ検定とシャピロ・ウィルク検定で調べる関数
+    :param data: 検定するデータ（1次元配列）
+    :param alpha: 有意水準（デフォルトは0.05）
+    :return: 検定結果
+    """
+    print("=== データの正規性検定 ===")
+
+    # コルモゴロフ・スミルノフ検定
+    ks_stat, ks_p = stats.kstest(data, "norm")
+    print(f"Kolmogorov-Smirnov Test: statistic={ks_stat:.4f}, p-value={ks_p:.4f}")
+    if ks_p > alpha:
+        print("Kolmogorov-Smirnov Test: データは正規分布に従う (p > 0.05)")
+    else:
+        print("Kolmogorov-Smirnov Test: データは正規分布に従わない (p <= 0.05)")
+
+    # シャピロ・ウィルク検定
+    shapiro_stat, shapiro_p = stats.shapiro(data)
+    print(f"Shapiro-Wilk Test: statistic={shapiro_stat:.4f}, p-value={shapiro_p:.4f}")
+    if shapiro_p > alpha:
+        print("Shapiro-Wilk Test: データは正規分布に従う (p > 0.05)")
+    else:
+        print("Shapiro-Wilk Test: データは正規分布に従わない (p <= 0.05)")
+
+
+# Slope1の検定
+print("\nSlope1の検定:")
+check_normality(slope1_each_person)
+
+# 正規分布に従わないデータの検定
+print("\nSlope2の検定:")
+check_normality(slope2_each_person)
+
+# QQプロットもしてみる(プロットが45度の直線に沿えば正規性あり)
+print("\nQQプロットもしてみる")
+# QQプロットの作成
+stats.probplot(slope1_each_person, dist="norm", plot=plt)  # 正規分布を指定
+# stats.probplot(slope1_each_person, dist=stats.expon, plot=plt)  # 指数分布を指定
+# stats.probplot(slope1_each_person, dist=stats.lognorm, sparams=(1,), plot=plt)  # 対数正規分布を指定
+# stats.probplot(slope1_each_person, dist=stats.gamma, sparams=(2,), plot=plt)  # ガンマ分布を指定
+plt.title("QQ Plot (Slope1)")
+plt.show()
+# QQプロットの作成
+stats.probplot(slope2_each_person, dist="norm", plot=plt)  # 正規分布を指定
+# stats.probplot(slope2_each_person, dist=stats.expon, plot=plt)  # 指数分布を指定
+# stats.probplot(slope2_each_person, dist=stats.lognorm, sparams=(1,), plot=plt)  # 対数正規分布を指定
+plt.title("QQ Plot (Slope2)")
+plt.show()
+
+
+# %% ノンパラメトリック検定 (Slopeの中央値の差を検定)
+print(f"脳波と{column_name_of_HRV_measure}\n")
+
+
+def compare_means_nonparametric(data_A, data_B, paired=False):
+    """
+    正規性が仮定できない場合に、データAとデータBの平均値を比較する関数。
+
+    パラメータ:
+    data_A: list or array, データAの値
+    data_B: list or array, データBの値
+    paired: bool, Trueならウィルコクソンの符号付き順位検定（対応あり）、
+                  Falseならマン・ホイットニーU検定（独立群）
+
+    出力:
+    統計量とp値
+    """
+    if paired:
+        # ウィルコクソンの符号付き順位検定（対応あり）
+        stat, p_value = stats.wilcoxon(data_A, data_B)
+    else:
+        # マン・ホイットニーU検定（独立群）
+        stat, p_value = stats.mannwhitneyu(data_A, data_B, alternative="two-sided")
+
+    return stat, p_value
+
+
+# 使用例（データは適当に設定）
+data_A = slope1_each_person
+data_B = slope2_each_person
+
+# 独立した2群の比較（マン・ホイットニーU検定）
+stat_u, p_value_u = compare_means_nonparametric(data_A, data_B, paired=False)
+print(f"Mann-Whitney U 検定: U値 = {stat_u:.3f}, p値 = {p_value_u}")
+
+# 対応のあるデータの比較（ウィルコクソン符号付き順位検定）
+stat_w, p_value_w = compare_means_nonparametric(data_A, data_B, paired=True)
+print(f"Wilcoxon 検定: W値 = {stat_w}, p値 = {p_value_w}")
+
+# %% 【実行する】すべてのファイルにおける相関係数とゆらぎ関数の平均を全ての脳波でプロット(次数は指定する)
 # プロットする範囲をsliceオブジェクトにする
 range_slice = slice(1, len(s))
 print(f"len(s): {len(s)}")
@@ -375,7 +613,7 @@ labels = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)"]
 for order in orders:
     fig, axs = plt.subplots(2, 5, figsize=(30, 14))
     fig.suptitle(
-        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''} {f'(Stage: {remove_sleep_stage}_removed)' if remove_sleep_stage != '' else ''}",
+        f"Mean XCorr and FFunc of DMCA{order} to Brain Waves and {column_name_of_HRV_measure}  {f'(Stage: {select_sleep_stage})' if select_sleep_stage != '' else ''} {f'(Stage: {remove_sleep_stage}{remove_sleep_stage_2}_removed)' if remove_sleep_stage != '' else ''}",
         fontsize=fs_title,
         y=0.935,
     )
@@ -512,8 +750,8 @@ for order in orders:
     plt.show()
 
 
-# %% アブスト用のグラフをプロット
-order = 0  # 次数を指定
+# %% 【実行する】アブスト用のグラフその1(DeltaとGammaの0次DMCA)
+order = 4  # 次数を指定
 # プロットしたいバンドを指定(Delta:0,Theta:1, Alpha:2, Beta:3, Gamma:4)
 band_inds = [0, 4]
 eeg_bands_selected = ["Delta", "Gamma"]
@@ -659,7 +897,10 @@ plt.tight_layout(rect=[0, 0, 1, 0.95])  # グラフが重ならないように�
 plt.show()
 
 
-# %% アブスト用のグラフその2(生データとデルタ波の解析結果)
+# %% 【一応実行する】アブスト用のグラフその2(生データとデルタ波の解析結果)
+order = 4  # 次数を指定
+
+
 # 任意のプロット用関数（例: ユーザーが提供する関数をここで受け取る）
 def custom_plot_func(ax, plot_index):
     if plot_index == 0:
@@ -779,6 +1020,247 @@ for i, (band_ind, eeg_band) in enumerate(zip(band_inds[:1], eeg_bands_selected[:
 plt.tight_layout(rect=[0, 0, 1, 0.95])
 plt.show()
 
+
+# %% アブスト用のグラフその3(生データ)
+fs_title = 35
+fs_label = 40
+fs_ticks = 25
+fs_legend = 30
+
+labels = ["(a)", "(b)", "(c)", "(d)", "(e)", "(f)", "(g)", "(h)", "(i)", "(j)"]
+
+# プロットしたい生データを指定
+# [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2，[29:30]は20P自宅2
+file_name = all_combined_files[29]
+
+# ファイルの読み込み
+os.chdir(script_dir)
+os.chdir(DIR_EEG)  # ディレクトリの移動
+with open(file_name, "rb") as file:
+    # ファイルのエンコーディングを検出
+    detected_encoding = detect(file.read())["encoding"]
+# 正しいエンコーディングでファイルを読み込む
+data = pd.read_csv(file_name, encoding=detected_encoding)
+
+fig, axs = plt.subplots(1, 6, figsize=(36, 7))
+
+bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
+# 脳波の生データをプロット
+for band_i, band in enumerate(bands):
+    x1 = data.iloc[:, 9 + band_i].values  # Deltaは +0 でおｋ
+    n = len(x1)
+    axs[band_i].plot(range(n), x1, color="green")
+    axs[band_i].set_ylim(0, 1)
+    axs[band_i].set_title(f"{band} waves", fontsize=fs_title)
+    axs[band_i].set_xlabel("i", fontsize=fs_label)
+    if band_i == 0:
+        axs[band_i].set_ylabel("Relative Power", fontsize=fs_label)
+    axs[band_i].tick_params(axis="both", which="both", labelsize=fs_ticks, length=15, width=2)
+    axs[band_i].text(
+        0.02,
+        0.95,
+        labels[band_i],
+        transform=axs[band_i].transAxes,
+        fontsize=fs_label,
+        fontweight="bold",
+        va="top",
+        ha="left",
+    )
+
+# 心拍の生データをプロット
+x2 = data.iloc[:, column_index_of_HRV_measure].values
+column_name_of_HRV_measure = data.columns[column_index_of_HRV_measure]
+axs[5].plot(range(n), x2, color="blue")
+axs[5].set_title(column_name_of_HRV_measure, fontsize=fs_title)
+axs[5].set_xlabel("i", fontsize=fs_label)
+axs[5].set_ylabel(f"{column_name_of_HRV_measure} [ms]", fontsize=fs_label)
+axs[5].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[5].text(
+    0.02,
+    0.95,
+    labels[5],
+    transform=axs[5].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+
+# レイアウト調整と表示
+plt.tight_layout()
+plt.show()
+
+# %% アブスト用のグラフその4(2つの心拍変動指標についてバンドの平均SlopeとXCorr)
+order = 4  # 次数を指定
+
+fs_title = 35
+fs_label = 40
+fs_ticks = 25
+fs_legend = 30
+
+fig, axs = plt.subplots(1, 2, figsize=(15, 7))
+
+# プロットする範囲をsliceオブジェクトにする
+range_slice = slice(1, len(s))
+print(f"len(s): {len(s)}")
+
+# プロット設定
+# fig, axs = plt.subplots(1, 2, figsize=(18, 8))  # 横並びで2つのプロット
+# fig.suptitle("Combined Plots for EEG Bands and F Functions", fontsize=20)
+
+bands = [r"$\delta$", r"$\theta$", r"$\alpha$", r"$\beta$", r"$\gamma$"]
+
+# 1つ目のグラフ：0行0～4列を統合
+# プロット用のcolorとlinestyleをリストで定義
+colors = ["red", "blue", "green", "#CC5500", "purple"]
+linestyles = ["-", "--", "-.", ":", (0, (5, 3))]  # 必要に応じて増やす
+for band_ind, eeg_band in enumerate(eeg_bands[:5]):
+    rho_mean_dmca4 = rho_mean[band_ind][order // 2][range_slice]  # データ取得
+    # 各プロットに異なるlinestyleを指定
+    axs[0].plot(
+        np.log10(s[range_slice]),
+        rho_mean_dmca4,
+        label=f"{bands[band_ind]} ratio",
+        color=colors[band_ind],
+        linestyle=linestyles[band_ind % len(linestyles)],  # リストの範囲を超えないように
+        lw=2.5,
+    )
+
+# グラフの装飾
+# タイトルはなくて良い
+# axs[0].set_title(f"XCorr of EEG vs. {column_name_of_HRV_measure}", fontsize=fs_title)
+axs[0].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+axs[0].set_ylabel(r"$\rho$", fontsize=fs_label)
+axs[0].set_ylim(-1, 1)
+axs[0].axhline(0, linestyle="--", color="gray")
+axs[0].legend(fontsize=20, loc="lower left")
+axs[0].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[0].text(
+    0.02,
+    0.95,
+    labels[0],
+    transform=axs[0].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+
+# 2つ目のグラフ：log10F1_mean_dmca4 と log10F2_mean_dmca4 を色分けしてプロット
+axs[1].scatter(np.log10(s[range_slice]), log10F1_mean_dmca4, label=r"$F_1$", color="green", marker="^", facecolors="none", s=75)
+axs[1].scatter(np.log10(s[range_slice]), log10F2_mean_dmca4, label=r"$F_2$", color="blue", marker="s", facecolors="none", s=75)
+# 新しい直線の式を生成
+# coeff1_mean_modified = [coeff1_mean[0], coeff1_mean[1]]
+# fitted1_mean_modified = np.poly1d(coeff1_mean_modified)
+axs[1].plot(np.log10(s[8:20]), fitted1_mean(np.log10(s[8:20])) - 0.2, color="green", linestyle=(0, (5, 3)), lw=3)
+# fitted2_mean_modified = np.poly1d([fitted2_mean[1], fitted2_mean[0]])
+axs[1].plot(np.log10(s[8:20]), fitted2_mean(np.log10(s[8:20])) + 0.1, color="blue", linestyle=(0, (5, 3)), lw=3)
+
+axs[1].set_ylim(-0.95, 0.95)
+# タイトルはなくて良い
+# axs[1].set_title(f"EEG and {column_name_of_HRV_measure}", fontsize=fs_title)  # タイトルを空白に設定
+# axs[1].set_title("    and           ", fontsize=fs_title)  # タイトルを空白に設定
+# axs[1].text(
+#     0.145,
+#     1,
+#     "EEG",
+#     transform=axs[1].transAxes,  # 相対座標に変換
+#     fontsize=fs_title,
+#     color="green",
+#     va="bottom",
+# )
+# axs[1].text(
+#     0.515,
+#     1,
+#     f"{column_name_of_HRV_measure}",
+#     transform=axs[1].transAxes,  # 相対座標に変換
+#     fontsize=fs_title,
+#     color="blue",
+#     va="bottom",
+# )
+
+axs[1].set_xlabel(r"$\log_{10}(s)$", fontsize=fs_label)
+axs[1].set_ylabel(r"$\log_{10}F(s)$", fontsize=fs_label)
+axs[1].legend(fontsize=fs_label)
+axs[1].tick_params(axis="both", which="both", labelsize=fs_ticks)
+axs[1].legend(
+    fontsize=fs_legend,
+    labelspacing=0.3,  # ラベル間の縦のスペースを調整
+    handlelength=1,  # 凡例内の線（ハンドル）の長さを調整
+    handletextpad=0.1,  # 線とテキスト間のスペースを調整
+    borderpad=0.2,  # 凡例全体の内側の余白
+)
+axs[1].text(
+    0.02,
+    0.95,
+    labels[1],
+    transform=axs[1].transAxes,
+    fontsize=fs_label,
+    fontweight="bold",
+    va="top",
+    ha="left",
+)
+# 脳波のバンドにおけるSlopeの平均値
+band_slope = []
+for band_ind, eeg_band in enumerate(eeg_bands):
+    band_log10F1_mean = log10F1_mean[band_ind]
+    band_coeff1_mean = np.polyfit(np.log10(s[range_slice]), band_log10F1_mean[order // 2][range_slice], 1)
+    band_fitted1_mean = np.poly1d((band_coeff1_mean))
+    band_slope.append(band_coeff1_mean[0])
+# band_log10F1_mean を NumPy 配列に変換
+band_slope = np.array(band_slope)
+band_slope_mean = np.mean(band_slope)
+band_slope_std = np.std(band_slope)
+axs[1].text(
+    0.37,
+    0.15,
+    rf"{band_slope_mean:.3f}$\pm${band_slope_std:.3f}",
+    transform=axs[1].transAxes,  # 相対座標に変換
+    fontsize=25,
+    color="green",
+    va="bottom",
+    rotation=np.degrees(np.arctan(fitted1_mean[1])),
+    rotation_mode="anchor",
+)
+axs[1].text(
+    0.35,
+    0.4,
+    rf"{coeff2_mean[0]:.3f}",
+    transform=axs[1].transAxes,  # 相対座標に変換
+    fontsize=25,
+    color="blue",
+    va="bottom",
+    rotation=np.degrees(np.arctan(fitted2_mean[1])),
+    rotation_mode="anchor",
+)
+
+# レイアウト調整と表示
+plt.tight_layout()
+plt.show()
+
+
+# %%
+# 先にスロープを求めてその平均と標準偏差を求める
+print(log10F1_mean.shape)
+band_slope = []
+for band_ind, eeg_band in enumerate(eeg_bands):
+    band_log10F1_mean = log10F1_mean[band_ind]
+    band_coeff1_mean = np.polyfit(np.log10(s[range_slice]), band_log10F1_mean[order // 2][range_slice], 1)
+    band_fitted1_mean = np.poly1d((band_coeff1_mean))
+    band_slope.append(band_coeff1_mean[0])
+
+# band_log10F1_mean を NumPy 配列に変換
+band_slope = np.array(band_slope)
+# shape を表示
+print(band_slope.shape)
+band_slope_mean = np.mean(band_slope)
+band_slope_std = np.std(band_slope)
+print(band_slope_mean)
+print(band_slope_std)
+
+# %%
+print(log10F1_mean_dmca4.shape)
+print(np.mean(log10F1_mean_dmca4))
 
 # %% DMCA(4次)の相関係数の平均値をすべての脳波でプロット
 # fig, axs = plt.subplots(2, 3, figsize=(20, 14))
