@@ -71,6 +71,49 @@ slopes2 = np.zeros((len(all_combined_files), 6, 3))
 slopes12 = np.zeros((len(all_combined_files), 6, 3))
 mask = np.ones(len(all_combined_files), dtype=bool)
 
+
+def estimate_optimal_lag(x, y, scale, max_lag):
+    """
+    DMCAに基づいてラグを推定する関数。
+    与えられた2つの時系列 x, y に対して、-max_lag から +max_lag の範囲で
+    DMCA交差相関フラクチュエーションを評価し、最大値を取るラグを返す。
+    """
+
+    def moving_average(series, s):
+        return np.convolve(series, np.ones(s) / s, mode="same")
+
+    x_profile = np.cumsum(x - np.mean(x))
+    y_profile = np.cumsum(y - np.mean(y))
+
+    lags = np.arange(-max_lag, max_lag + 1)
+    flucts = []
+
+    for lag in lags:
+        if lag < 0:
+            x_shifted = x_profile[:lag]
+            y_shifted = y_profile[-lag:]
+        elif lag > 0:
+            x_shifted = x_profile[lag:]
+            y_shifted = y_profile[:-lag]
+        else:
+            x_shifted = x_profile
+            y_shifted = y_profile
+
+        min_len = min(len(x_shifted), len(y_shifted))
+        x_shifted = x_shifted[:min_len]
+        y_shifted = y_shifted[:min_len]
+
+        x_detrended = x_shifted - moving_average(x_shifted, scale)
+        y_detrended = y_shifted - moving_average(y_shifted, scale)
+
+        min_len = min(len(x_detrended), len(y_detrended))
+        fxy = np.mean(x_detrended[:min_len] * y_detrended[:min_len])
+        flucts.append(fxy)
+
+    optimal_lag = lags[np.argmax(np.abs(flucts))]
+    return optimal_lag, lags, flucts
+
+
 # ファイルごとに一連の処理を行う
 for file_ind, file_name in enumerate(all_combined_files):
     # [3:4]は19E自宅,[11:12]は19O自宅，[12:13]は20A自宅1，[19:20]は20I自宅2
@@ -219,6 +262,26 @@ for file_ind, file_name in enumerate(all_combined_files):
             # データ内のNaNを線形補間で埋める
             x1_norm = pd.Series(x1_norm).interpolate(limit_direction="both").values
             x2_norm = pd.Series(x2_norm).interpolate(limit_direction="both").values
+
+            # ラグ推定（スケール中央値と最大ラグを使う）
+            optimal_scale = int(np.median(s))
+            max_lag = 200
+            estimated_lag, _, _ = estimate_optimal_lag(x1_norm, x2_norm, optimal_scale, max_lag)
+            print(f"Estimated optimal lag at order {order}: {estimated_lag}")
+
+            # ラグ補正の適用
+            if estimated_lag < 0:
+                x1_norm = x1_norm[:estimated_lag]
+                x2_norm = x2_norm[-estimated_lag:]
+            elif estimated_lag > 0:
+                x1_norm = x1_norm[estimated_lag:]
+                x2_norm = x2_norm[:-estimated_lag]
+            # ラグが0のときはそのまま
+
+            # 時系列を同期させる
+            min_len = min(len(x1_norm), len(x2_norm))
+            x1_norm = x1_norm[:min_len]
+            x2_norm = x2_norm[:min_len]
 
             # 積分時系列の計算
             y1 = np.cumsum(x1_norm)
