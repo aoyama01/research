@@ -27,13 +27,16 @@ ic(all_files_RRI)
 # ic(all_files_RRI[-2:])  # 最後らへんでエラーなったからリストの後ろ2つだけで処理した
 # 欠損してるファイルの処理を飛ばして，それ以外のファイルを処理できるようにする？
 
+# 分析単位（30秒 * N）
+N = 2  # N=2なら60秒ごとの解析
+
 # %%
 for file_name in all_files_RRI:
     # ファイル名の指定
     FN_RRI = file_name  # このファイル名を基準にして以降のファイル名を取得
     FN_EEG = FN_RRI.replace(".csv", "") + "睡眠段階.csv"  # FN_EEG = "2019B自宅睡眠段階.csv"
     FN_EEG_DATE = FN_RRI.replace(".csv", "") + "日付.csv"  # FN_EEG_DATE = "2019B自宅日付.csv"
-    FN_OUT = FN_RRI.replace(".csv", "") + "_EEG_RRI.csv"  # FN_OUT = "2019B自宅_EEG_RRI.csv"
+    FN_OUT = FN_RRI.replace(".csv", "") + f"_{30 * N}sec_EEG_RRI.csv"  # FN_OUT = "2019B自宅_EEG_RRI.csv"
 
     os.chdir(script_dir)
     os.chdir(DIR_EEG)
@@ -179,22 +182,65 @@ for file_name in all_files_RRI:
 
     time = pd.to_datetime(time, utc=True).tz_convert("Asia/Tokyo")
 
-    # 統合データの作成
-    TMP_EEG = TMP_EEG.iloc[1:].copy()
-    TMP_EEG["MeanRR"] = meanRR
-    TMP_EEG["SDRR"] = SDRR
-    TMP_EEG["RMSSD"] = RMSSD
-    TMP_EEG["pNN50"] = pNN50
-    TMP_EEG["HRVI"] = HRVI
-    TMP_EEG["TINN"] = TINN
-    TMP_EEG["LF"] = LF
-    TMP_EEG["HF"] = HF
-    TMP_EEG["LF/HF"] = LF_HF_ratio
+    # # 統合データの作成
+    # TMP_EEG = TMP_EEG.iloc[1:].copy()
+    # TMP_EEG["MeanRR"] = meanRR
+    # TMP_EEG["SDRR"] = SDRR
+    # TMP_EEG["RMSSD"] = RMSSD
+    # TMP_EEG["pNN50"] = pNN50
+    # TMP_EEG["HRVI"] = HRVI
+    # TMP_EEG["TINN"] = TINN
+    # TMP_EEG["LF"] = LF
+    # TMP_EEG["HF"] = HF
+    # TMP_EEG["LF/HF"] = LF_HF_ratio
 
-    # 統合データの書き出し
+    # # 統合データの書き出し
+    # os.chdir(script_dir)
+    # os.chdir(DIR_OUT)
+    # TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
+
+    # === N区間ごとに再集計 ===
+    time_N = []
+    meanRR_N = []
+    SDRR_N = []
+    RMSSD_N = []
+    pNN50_N = []
+    HRVI_N = []
+    TINN_N = []
+    LF_N = []
+    HF_N = []
+    LF_HF_ratio_N = []
+
+    for i in range(0, len(meanRR), N):
+        if i + N > len(meanRR):
+            break
+        time_N.append(time[i + N - 1])
+        meanRR_N.append(np.nanmean(meanRR[i : i + N]))
+        SDRR_N.append(np.nanmean(SDRR[i : i + N]))
+        RMSSD_N.append(np.nanmean(RMSSD[i : i + N]))
+        pNN50_N.append(np.nanmean(pNN50[i : i + N]))
+        HRVI_N.append(np.nanmean(HRVI[i : i + N]))
+        TINN_N.append(np.nanmean(TINN[i : i + N]))
+        LF_N.append(np.nanmean(LF[i : i + N]))
+        HF_N.append(np.nanmean(HF[i : i + N]))
+        LF_HF_ratio_N.append(np.nanmean(LF_HF_ratio[i : i + N]))
+
+    TMP_EEG_N = TMP_EEG.iloc[1:].copy().iloc[::N].reset_index(drop=True)
+    TMP_EEG_N = TMP_EEG_N.iloc[: len(time_N)]
+    TMP_EEG_N["date.time"] = time_N
+    TMP_EEG_N["MeanRR"] = meanRR_N
+    TMP_EEG_N["SDRR"] = SDRR_N
+    TMP_EEG_N["RMSSD"] = RMSSD_N
+    TMP_EEG_N["pNN50"] = pNN50_N
+    TMP_EEG_N["HRVI"] = HRVI_N
+    TMP_EEG_N["TINN"] = TINN_N
+    TMP_EEG_N["LF"] = LF_N
+    TMP_EEG_N["HF"] = HF_N
+    TMP_EEG_N["LF/HF"] = LF_HF_ratio_N
+
     os.chdir(script_dir)
     os.chdir(DIR_OUT)
-    TMP_EEG.to_csv(FN_OUT, index=False, sep=",")
+    TMP_EEG_N.to_csv(FN_OUT, index=False, sep=",")
 
 # %%
 # それぞれのデータファイルの計測開始時刻，計測終了時刻，計測期間を取得し，全ての平均値を求める処理を記述してもらいたい．
